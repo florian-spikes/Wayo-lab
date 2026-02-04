@@ -81,25 +81,20 @@ const JoinTrip: React.FC = () => {
         try {
             setLoading(true);
 
-            // 1. Add to members
-            const { error: memberError } = await supabase.from('trip_members').insert({
-                trip_id: invitation.trip_id,
-                user_id: user.id,
-                role: 'viewer' // Force Viewer role mostly, or use invitation.role if legacy
-            });
+            // Call RPC to accept invitation (bypasses RLS)
+            const { data, error } = await supabase
+                .rpc('accept_invitation', { invitation_token: token });
 
-            if (memberError) {
-                // Ignore if unique violation (already member)
-                if (memberError.code !== '23505') throw memberError;
+            if (error) {
+                throw new Error(error.message || 'Erreur lors de l\'acceptation');
             }
 
-            // 2. Update invitation status
-            await supabase.from('trip_invitations')
-                .update({ status: 'accepted' })
-                .eq('id', invitation.id);
+            if (!data || !data.trip_id) {
+                throw new Error('Erreur lors de l\'acceptation de l\'invitation');
+            }
 
-            // 3. Redirect to trip
-            navigate(`/trips/${invitation.trip_id}/day/1`);
+            // Redirect to trip
+            navigate(`/trips/${data.trip_id}/day/1`);
 
         } catch (err: any) {
             alert('Erreur: ' + err.message);

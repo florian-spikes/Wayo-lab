@@ -633,8 +633,20 @@ const TripEditor: React.FC = () => {
             try {
                 // Ne charger les infos de base que si elles sont absentes ou si c'est l'init
                 if (isInitial) {
-                    const { data: tripData } = await supabase.from('trips').select('*').eq('id', tripId).single();
-                    setTrip(tripData);
+                    // Use RPC to fetch trip (bypasses RLS issues)
+                    const { data: tripData, error: tripError } = await supabase
+                        .rpc('get_trip_for_member', { p_trip_id: tripId });
+
+                    if (tripError) {
+                        console.error('Error fetching trip:', tripError);
+                        // If RPC fails, user might not be a member
+                        setTrip(null);
+                    } else if (tripData && tripData.length > 0) {
+                        setTrip(tripData[0]);
+                    } else {
+                        setTrip(null);
+                    }
+
 
                     const { data: daysData } = await supabase.from('trip_days').select('*').eq('trip_id', tripId).order('day_index', { ascending: true });
                     setDays(daysData || []);
