@@ -25,59 +25,44 @@ const JoinTrip: React.FC = () => {
 
     const checkInvitation = async () => {
         try {
-            // 1. Fetch invitation with Trip details (without trying to join profiles)
-            const { data: inviteData, error: inviteError } = await supabase
-                .from('trip_invitations')
-                .select(`
-                    *,
-                    trip:trip_id (
-                        id,
-                        title,
-                        destination_country,
-                        start_date,
-                        end_date,
-                        user_id
-                    )
-                `)
-                .eq('token', token)
-                .single();
+            // Call RPC function to get invitation details (bypasses RLS)
+            const { data, error } = await supabase
+                .rpc('get_invitation_details', { invitation_token: token });
 
-            if (inviteError || !inviteData) {
-                console.error('Invite error', inviteError);
+            if (error) {
+                console.error('RPC error', error);
+                throw new Error('Erreur lors de la récupération de l\'invitation.');
+            }
+
+            if (!data || data.length === 0) {
                 throw new Error('Invitation introuvable ou expirée.');
             }
 
-            // Check if trip exists
-            if (!inviteData.trip) {
-                throw new Error('Ce voyage n\'existe plus.');
-            }
+            const invitationData = data[0];
 
-            // Check invitation status
-            if (inviteData.status !== 'pending') {
-                throw new Error('Cette invitation a déjà été utilisée ou a expiré.');
-            }
-
-            // Check expiration (24h)
-            const expiresAt = new Date(inviteData.expires_at);
-            if (expiresAt < new Date()) {
-                throw new Error('Ce lien d\'invitation a expiré. Demandez un nouveau lien à l\'organisateur.');
-            }
-
-            // 2. Fetch the owner's profile separately
-            const { data: ownerProfile } = await supabase
-                .from('profiles')
-                .select('username, emoji')
-                .eq('id', inviteData.trip.user_id)
-                .single();
-
-            // Attach owner profile to trip data
-            const tripWithOwner = {
-                ...inviteData.trip,
-                owner: ownerProfile || { username: 'Voyageur', emoji: '👤' }
+            // Transform RPC result to expected format
+            const invitation = {
+                id: invitationData.invitation_id,
+                trip_id: invitationData.trip_id,
+                token: invitationData.token,
+                status: invitationData.status,
+                expires_at: invitationData.expires_at
             };
 
-            setInvitation(inviteData);
-            setTrip(tripWithOwner);
+            const trip = {
+                id: invitationData.trip_id,
+                title: invitationData.trip_title,
+                destination_country: invitationData.trip_destination,
+                start_date: invitationData.trip_start,
+                end_date: invitationData.trip_end,
+                owner: {
+                    username: invitationData.owner_username || 'Voyageur',
+                    emoji: invitationData.owner_emoji || '👤'
+                }
+            };
+
+            setInvitation(invitation as any);
+            setTrip(trip as any);
         } catch (err: any) {
             console.error(err);
             setError(err.message || 'Invitation introuvable ou expirée.');
