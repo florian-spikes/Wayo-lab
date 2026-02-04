@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { MapPin, Calendar, ArrowRight, CheckCircle2, AlertTriangle, User } from 'lucide-react';
+import { MapPin, Calendar, ArrowRight, CheckCircle2, AlertTriangle, User, Home, ArrowLeft } from 'lucide-react';
 import ToriLogo from '../components/ToriLogo';
 
 const JoinTrip: React.FC = () => {
@@ -25,10 +25,24 @@ const JoinTrip: React.FC = () => {
 
     const checkInvitation = async () => {
         try {
-            // 1. Fetch invitation
+            // 1. Fetch invitation with Trip details and Owner profile
+            // Note: We use the profiles table via the user_id foreign key on trips
             const { data: inviteData, error: inviteError } = await supabase
                 .from('trip_invitations')
-                .select('*, trip:trip_id (id, title, destination_country, start_date, end_date, creator:created_by (email))')
+                .select(`
+                    *,
+                    trip:trip_id (
+                        id,
+                        title,
+                        destination_country,
+                        start_date,
+                        end_date,
+                        owner:profiles!user_id (
+                            username,
+                            emoji
+                        )
+                    )
+                `)
                 .eq('token', token)
                 .single();
 
@@ -44,7 +58,8 @@ const JoinTrip: React.FC = () => {
             setInvitation(inviteData);
             setTrip(inviteData.trip);
         } catch (err: any) {
-            setError(err.message);
+            console.error(err);
+            setError('Invitation introuvable ou expirée.'); // Generic safe message for user
         } finally {
             setLoading(false);
         }
@@ -64,7 +79,7 @@ const JoinTrip: React.FC = () => {
             const { error: memberError } = await supabase.from('trip_members').insert({
                 trip_id: invitation.trip_id,
                 user_id: user.id,
-                role: invitation.role
+                role: 'viewer' // Force Viewer role mostly, or use invitation.role if legacy
             });
 
             if (memberError) {
@@ -96,15 +111,40 @@ const JoinTrip: React.FC = () => {
 
     if (error) {
         return (
-            <div className="min-h-screen bg-dark-900 flex flex-col items-center justify-center p-4 text-center">
-                <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 mb-6">
-                    <AlertTriangle size={40} />
+            <div className="min-h-screen flex flex-col bg-dark-900 text-white relative overflow-hidden">
+                {/* Ambient Background */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-red-500/5 rounded-full blur-[120px] -z-10 pointer-events-none" />
+
+                <nav className="p-6">
+                    <div onClick={() => navigate('/')} className="cursor-pointer inline-block">
+                        <ToriLogo size="sm" />
+                    </div>
+                </nav>
+
+                <div className="flex-1 flex items-center justify-center px-4">
+                    <div className="max-w-md w-full text-center space-y-8 animate-in fade-in zoom-in duration-500">
+                        <div className="w-24 h-24 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto border border-red-500/20 shadow-2xl shadow-red-500/10 rotate-3">
+                            <AlertTriangle size={40} className="text-red-500" />
+                        </div>
+
+                        <div className="space-y-4">
+                            <h1 className="text-4xl font-black italic">
+                                Oups !
+                            </h1>
+                            <p className="text-gray-400 text-lg leading-relaxed">
+                                {error}
+                            </p>
+                        </div>
+
+                        <button
+                            onClick={() => navigate('/dashboard')}
+                            className="px-8 py-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-white font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-3 mx-auto"
+                        >
+                            <Home size={16} />
+                            Retour au Dashboard
+                        </button>
+                    </div>
                 </div>
-                <h1 className="text-2xl font-black text-white mb-2">Oups !</h1>
-                <p className="text-gray-400 mb-8">{error}</p>
-                <button onClick={() => navigate('/')} className="px-6 py-3 bg-white/5 rounded-xl text-white font-bold hover:bg-white/10 transition-colors">
-                    Retour à l'accueil
-                </button>
             </div>
         );
     }
@@ -121,54 +161,52 @@ const JoinTrip: React.FC = () => {
 
             <div className="flex-1 flex items-center justify-center px-4 pb-20">
                 <div className="w-full max-w-md bg-dark-800/50 border border-white/5 backdrop-blur-md rounded-[32px] p-8 shadow-2xl animate-in zoom-in duration-300">
-                    <div className="text-center mb-8">
-                        <div className="w-16 h-16 bg-brand-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 text-brand-500 border border-brand-500/20 shadow-lg shadow-brand-500/10 transform rotate-3">
-                            <User size={32} />
+                    <div className="text-center mb-10">
+                        <div className="w-20 h-20 bg-brand-500/20 rounded-3xl flex items-center justify-center mx-auto mb-6 text-brand-500 border border-brand-500/20 shadow-lg shadow-brand-500/10 transform -rotate-3">
+                            <User size={36} />
                         </div>
-                        <h1 className="text-3xl font-black text-white leading-tight mb-2">Invitation au voyage</h1>
+                        <h1 className="text-3xl font-black text-white leading-tight mb-2">Invitation</h1>
                         <p className="text-gray-400">
-                            Vous avez été invité à rejoindre <br />
-                            <span className="text-white font-bold">{trip?.creator?.email}</span>
+                            Rejoignez le voyage de <span className="text-white font-bold">{trip?.owner?.username || 'un voyageur'}</span> {trip?.owner?.emoji}
                         </p>
                     </div>
 
                     {/* Trip Preview Card */}
-                    <div className="bg-dark-900 rounded-2xl p-6 border border-white/5 mb-8 relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 w-20 h-20 bg-brand-500/10 rounded-bl-[100px] -mr-10 -mt-10 transition-all group-hover:scale-110"></div>
+                    <div className="bg-dark-900/80 rounded-3xl p-6 border border-white/5 mb-8 relative overflow-hidden group hover:border-brand-500/30 transition-colors">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-brand-500/5 rounded-bl-[100px] -mr-10 -mt-10 transition-all group-hover:scale-110 pointer-events-none"></div>
 
-                        <h2 className="text-xl font-black text-white mb-4 relative z-10">{trip?.title}</h2>
+                        <h2 className="text-2xl font-black text-white mb-6 relative z-10">{trip?.title}</h2>
 
-                        <div className="space-y-3 relative z-10">
-                            <div className="flex items-center gap-3 text-sm text-gray-400">
-                                <MapPin size={16} className="text-brand-500" />
-                                <span>{trip?.destination_country || 'Destination inconnue'}</span>
+                        <div className="space-y-4 relative z-10">
+                            <div className="flex items-center gap-4 text-sm text-gray-300">
+                                <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-brand-500 shrink-0">
+                                    <MapPin size={16} />
+                                </div>
+                                <span className="font-medium">{trip?.destination_country || 'Destination inconnue'}</span>
                             </div>
-                            <div className="flex items-center gap-3 text-sm text-gray-400">
-                                <Calendar size={16} className="text-brand-500" />
-                                <span>
-                                    {trip?.start_date ? new Date(trip.start_date).toLocaleDateString() : 'Date flexible'}
-                                    {trip?.end_date && ` - ${new Date(trip.end_date).toLocaleDateString()}`}
+                            <div className="flex items-center gap-4 text-sm text-gray-300">
+                                <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-brand-500 shrink-0">
+                                    <Calendar size={16} />
+                                </div>
+                                <span className="font-medium">
+                                    {trip?.start_date ? new Date(trip.start_date).toLocaleDateString(undefined, { day: 'numeric', month: 'long' }) : 'Date flexible'}
+                                    {trip?.end_date && ` - ${new Date(trip.end_date).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}`}
                                 </span>
                             </div>
-                        </div>
-
-                        <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-brand-500/10 rounded-lg text-[10px] font-black uppercase tracking-widest text-brand-500 border border-brand-500/20">
-                            <CheckCircle2 size={12} />
-                            Rôle : {invitation?.role === 'owner' ? 'Administrateur' : (invitation?.role === 'editor' ? 'Éditeur' : 'Observateur')}
                         </div>
                     </div>
 
                     <div className="space-y-3">
                         <button
                             onClick={handleAccept}
-                            className="w-full py-4 bg-brand-500 hover:bg-brand-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-lg shadow-brand-500/20 active:scale-95 flex items-center justify-center gap-2"
+                            className="w-full py-4 bg-brand-500 hover:bg-brand-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-lg shadow-brand-500/25 active:scale-95 flex items-center justify-center gap-3"
                         >
-                            {user ? 'Rejoindre le voyage' : 'Se connecter pour rejoindre'}
-                            <ArrowRight size={16} />
+                            {user ? 'Accepter et Rejoindre' : 'Se connecter pour rejoindre'}
+                            <ArrowRight size={18} />
                         </button>
                         {!user && (
-                            <p className="text-center text-xs text-gray-500 mt-4">
-                                Vous serez redirigé vers la page de connexion.
+                            <p className="text-center text-[10px] uppercase tracking-wider text-gray-500 mt-4 font-bold">
+                                Compte requis
                             </p>
                         )}
                     </div>
