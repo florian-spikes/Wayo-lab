@@ -16,6 +16,8 @@ import {
     Activity as ActivityIcon,
     Hotel,
     FileText,
+    Mail,
+    Link as LinkIcon,
     ChevronRight,
     BrainCircuit,
     GripVertical,
@@ -51,8 +53,7 @@ import {
     TreePine,
     CheckSquare,
     AlertTriangle,
-    Send,
-    Link as LinkIcon
+    Send
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 
@@ -369,7 +370,7 @@ const TripEditor: React.FC = () => {
     const [invitations, setInvitations] = useState<TripInvitation[]>([]);
     const [showTravelersSheet, setShowTravelersSheet] = useState(false);
     const [inviteEmail, setInviteEmail] = useState('');
-    const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('viewer');
+    // Role selector removed: default is always 'viewer' initially
     const [inviteStatus, setInviteStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [inviteStatusMessage, setInviteStatusMessage] = useState('');
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -854,15 +855,16 @@ const TripEditor: React.FC = () => {
         }
     };
 
-    const handleInviteEmail = async (email: string, role: 'editor' | 'viewer') => {
-        if (!tripId || !email || !user) return;
+    const handleInviteEmail = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!tripId || !inviteEmail || !user) return;
 
         setInviteStatus('idle');
         const token = crypto.randomUUID();
         const { error } = await supabase.from('trip_invitations').insert({
             trip_id: tripId,
-            email,
-            role,
+            email: inviteEmail,
+            role: 'viewer', // Always viewer by default
             token,
             created_by: user.id,
             status: 'pending'
@@ -872,7 +874,7 @@ const TripEditor: React.FC = () => {
             fetchMembers();
             setInviteEmail('');
             setInviteStatus('success');
-            setInviteStatusMessage(`Invitation envoyée à ${email}`);
+            setInviteStatusMessage(`Invitation envoyée à ${inviteEmail}`);
             setTimeout(() => setInviteStatus('idle'), 3000);
         } else {
             setInviteStatus('error');
@@ -884,26 +886,46 @@ const TripEditor: React.FC = () => {
     const handleGenerateLink = async () => {
         if (!tripId || !user) return;
         setInviteStatus('idle');
-        const token = crypto.randomUUID();
 
-        const { error } = await supabase.from('trip_invitations').insert({
-            trip_id: tripId,
-            token,
-            role: 'viewer',
-            created_by: user.id,
-            status: 'pending'
-        });
+        // 1. Check if a generic link already exists
+        const { data: existingLink } = await supabase
+            .from('trip_invitations')
+            .select('token')
+            .eq('trip_id', tripId)
+            .is('email', null) // Generic links have no email
+            .eq('status', 'pending')
+            .single();
 
-        if (!error) {
-            const link = `${window.location.origin}/join/${token}`;
-            navigator.clipboard.writeText(link);
-            setInviteStatus('success');
-            setInviteStatusMessage('Lien copié dans le presse-papier !');
-            setTimeout(() => setInviteStatus('idle'), 3000);
-        } else {
-            setInviteStatus('error');
-            setInviteStatusMessage('Erreur lors de la génération du lien.');
+        let token = existingLink?.token;
+
+        // 2. If not, create one
+        if (!token) {
+            token = crypto.randomUUID();
+            const { error } = await supabase.from('trip_invitations').insert({
+                trip_id: tripId,
+                token,
+                role: 'viewer',
+                created_by: user.id,
+                status: 'pending',
+                email: null // Explicitly null for generic
+            });
+
+            if (error) {
+                setInviteStatus('error');
+                setInviteStatusMessage('Erreur lors de la génération.');
+                return;
+            }
         }
+
+        // 3. Copy to clipboard
+        const link = `${window.location.origin}/join/${token}`;
+        navigator.clipboard.writeText(link);
+        setInviteStatus('success');
+        setInviteStatusMessage('Lien copié dans le presse-papier !');
+        setTimeout(() => setInviteStatus('idle'), 3000);
+
+        // Refresh to show the link in the list (if we want to show it)
+        fetchMembers();
     };
 
     if (isInitialLoading) {
@@ -1898,10 +1920,34 @@ const TripEditor: React.FC = () => {
                                         Invitations en attente
                                     </h3>
                                     <div className="space-y-2">
-                                        {invitations.map(invi => (
-                                            <div key={invi.id} className="flex items-center justify-between bg-dark-800/30 p-3 rounded-xl border border-white/5 border-dashed">
-                                                <div className="text-xs text-gray-400 truncate max-w-[200px]">{invi.email || 'Lien partagé'}</div>
-                                                <span className="text-[10px] px-2 py-0.5 bg-white/5 rounded text-gray-500 capitalize">{invi.role}</span>
+                                        {invitations.map(invite => (
+                                            <div key={invite.id} className="flex items-center gap-4 p-3 rounded-2xl border border-white/5 bg-white/[0.02]">
+                                                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+                                                    {invite.email ? <Mail size={16} className="text-gray-400" /> : <LinkIcon size={16} className="text-brand-500" />}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-sm font-bold truncate text-gray-300">
+                                                        {invite.email || 'Lien Public Actif'}
+                                                    </div>
+                                                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                                                        En attente • Observateur
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={async () => {
+                                                        const { error } = await supabase.from('trip_invitations').delete().eq('id', invite.id);
+                                                        if (!error) {
+                                                            setInvitations(prev => prev.filter(i => i.id !== invite.id));
+                                                            setInviteStatus('success');
+                                                            setInviteStatusMessage('Invitation révoquée');
+                                                            setTimeout(() => setInviteStatus('idle'), 3000);
+                                                        }
+                                                    }}
+                                                    className="p-2 text-gray-600 hover:text-red-500 transition-all opacity-50 hover:opacity-100"
+                                                    title="Révoquer l'invitation"
+                                                >
+                                                    <X size={14} />
+                                                </button>
                                             </div>
                                         ))}
                                     </div>
@@ -1912,32 +1958,28 @@ const TripEditor: React.FC = () => {
                             <section className="space-y-6 pt-6 border-t border-white/5">
                                 <h3 className="text-[10px] font-black uppercase tracking-widest text-brand-500">Inviter quelqu'un</h3>
 
-                                <div className="space-y-3">
+                                <form onSubmit={handleInviteEmail} className="space-y-3">
                                     <div className="flex gap-2">
                                         <input
                                             type="email"
+                                            required
                                             placeholder="Email du voyageur..."
                                             value={inviteEmail}
                                             onChange={e => setInviteEmail(e.target.value)}
                                             className="flex-1 bg-dark-800 border border-white/5 rounded-2xl h-[50px] px-4 text-sm text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
                                         />
-                                        <select
-                                            value={inviteRole}
-                                            onChange={e => setInviteRole(e.target.value as any)}
-                                            className="bg-dark-800 border border-white/5 rounded-2xl h-[50px] px-3 text-sm text-gray-400 focus:outline-none focus:border-brand-500 font-bold"
-                                        >
-                                            <option value="viewer">Voir</option>
-                                            <option value="editor">Modifier</option>
-                                        </select>
                                     </div>
+                                    <p className="text-[10px] text-gray-500 ml-1">
+                                        * Les invités rejoignent en tant qu'observateurs.
+                                    </p>
                                     <button
-                                        onClick={() => handleInviteEmail(inviteEmail, inviteRole)}
+                                        type="submit"
                                         disabled={!inviteEmail}
                                         className="w-full h-[50px] rounded-2xl bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-600 text-white font-black uppercase tracking-widest text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
                                     >
                                         <Send size={16} /> Envoyer l'invitation
                                     </button>
-                                </div>
+                                </form>
 
                                 <div className="relative">
                                     <div className="absolute inset-0 flex items-center">
