@@ -26,14 +26,18 @@ const Dashboard: React.FC = () => {
         if (!user) return;
 
         const fetchTrips = async () => {
-            const { data, error } = await supabase
-                .from('trips')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false });
+            // Utiliser le RPC pour récupérer tous les voyages (créés + rejoints)
+            const { data, error } = await supabase.rpc('get_user_trips');
 
             if (error) {
                 console.error('Erreur lors du chargement des voyages :', error);
+                // Fallback en cas d'erreur (ex: RPC pas encore dispo)
+                const { data: fallbackData } = await supabase
+                    .from('trips')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .order('created_at', { ascending: false });
+                setTrips(fallbackData || []);
             } else {
                 setTrips(data || []);
             }
