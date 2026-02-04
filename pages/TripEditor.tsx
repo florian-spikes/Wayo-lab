@@ -723,18 +723,41 @@ const TripEditor: React.FC = () => {
             .eq('trip_id', tripId);
 
         if (!membersError && membersData) {
-            // Step 2: Fetch profiles separately
+            // Step 2: Fetch profiles separately (include creator)
             const userIds = membersData.map(m => m.user_id);
+            if (trip?.user_id && !userIds.includes(trip.user_id)) {
+                userIds.push(trip.user_id);
+            }
+
             const { data: profilesData } = await supabase
                 .from('profiles')
                 .select('id, username, emoji, location')
                 .in('id', userIds);
 
             // Step 3: Merge the data
-            const membersWithProfiles = membersData.map(member => ({
+            let membersWithProfiles = membersData.map(member => ({
                 ...member,
                 user: profilesData?.find(p => p.id === member.user_id) || null
             }));
+
+            // Check if creator is already in the list, otherwise add them
+            if (trip?.user_id) {
+                const creatorInList = membersWithProfiles.some(m => m.user_id === trip.user_id);
+                if (!creatorInList) {
+                    const creatorProfile = profilesData?.find(p => p.id === trip.user_id);
+                    // Mock a member object for the creator
+                    const creatorMember = {
+                        id: 'creator-' + trip.user_id,
+                        trip_id: tripId,
+                        user_id: trip.user_id,
+                        role: 'owner',
+                        joined_at: trip.created_at,
+                        user: creatorProfile || null
+                    };
+                    // @ts-ignore
+                    membersWithProfiles = [creatorMember, ...membersWithProfiles];
+                }
+            }
 
             // @ts-ignore - Supabase types mapping for joined tables can be tricky
             setMembers(membersWithProfiles);
