@@ -1937,7 +1937,7 @@ const TripEditor: React.FC = () => {
 
                             {/* Pending Invitations */}
                             {invitations.length > 0 && (
-                                <section className="space-y-4">
+                                <section className="space-y-4 px-8">
                                     <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 flex items-center gap-2">
                                         <Clock size={12} />
                                         Invitations en attente
@@ -1978,7 +1978,7 @@ const TripEditor: React.FC = () => {
                             )}
 
                             {/* Invite Actions */}
-                            <section className="space-y-6 pt-6 border-t border-white/5">
+                            <section className="space-y-6 pt-6 border-t border-white/5 px-8">
                                 <h3 className="text-[10px] font-black uppercase tracking-widest text-brand-500">Inviter des voyageurs</h3>
 
                                 <div className="space-y-3">
