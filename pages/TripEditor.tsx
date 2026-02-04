@@ -888,14 +888,15 @@ const TripEditor: React.FC = () => {
         setInviteStatus('idle');
 
         // 1. Check if a generic link already exists
-        const { data: existingLink } = await supabase
+        // Fetch all pending invitations and filter client-side to avoid .is() syntax issues
+        const { data: pendingInvites } = await supabase
             .from('trip_invitations')
-            .select('token')
+            .select('id, token, email')
             .eq('trip_id', tripId)
-            .is('email', null) // Generic links have no email
-            .eq('status', 'pending')
-            .single();
+            .eq('status', 'pending');
 
+        // Find the generic link (one without an email)
+        const existingLink = pendingInvites?.find(inv => inv.email === null);
         let token = existingLink?.token;
 
         // 2. If not, create one

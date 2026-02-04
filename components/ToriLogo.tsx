@@ -15,10 +15,23 @@ const ToriLogo: React.FC<ToriLogoProps> = ({
     size = 32,
     color = "currentColor"
 }) => {
+    // Convert size to number if it's a string preset
+    const sizeMap: Record<string, number> = {
+        'xs': 16,
+        'sm': 24,
+        'md': 32,
+        'lg': 48,
+        'xl': 64
+    };
+
+    const numericSize = typeof size === 'string'
+        ? (sizeMap[size] || 32)
+        : size;
+
     return (
         <svg
-            width={size}
-            height={size}
+            width={numericSize}
+            height={numericSize}
             viewBox="0 0 420 420"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"

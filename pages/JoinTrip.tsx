@@ -25,8 +25,7 @@ const JoinTrip: React.FC = () => {
 
     const checkInvitation = async () => {
         try {
-            // 1. Fetch invitation with Trip details and Owner profile
-            // Note: We use the profiles table via the user_id foreign key on trips
+            // 1. Fetch invitation with Trip details (without trying to join profiles)
             const { data: inviteData, error: inviteError } = await supabase
                 .from('trip_invitations')
                 .select(`
@@ -37,10 +36,7 @@ const JoinTrip: React.FC = () => {
                         destination_country,
                         start_date,
                         end_date,
-                        owner:profiles!user_id (
-                            username,
-                            emoji
-                        )
+                        user_id
                     )
                 `)
                 .eq('token', token)
@@ -55,8 +51,21 @@ const JoinTrip: React.FC = () => {
                 throw new Error('Cette invitation a déjà été utilisée ou a expiré.');
             }
 
+            // 2. Fetch the owner's profile separately
+            const { data: ownerProfile } = await supabase
+                .from('profiles')
+                .select('username, emoji')
+                .eq('id', inviteData.trip.user_id)
+                .single();
+
+            // Attach owner profile to trip data
+            const tripWithOwner = {
+                ...inviteData.trip,
+                owner: ownerProfile || { username: 'Voyageur', emoji: '👤' }
+            };
+
             setInvitation(inviteData);
-            setTrip(inviteData.trip);
+            setTrip(tripWithOwner);
         } catch (err: any) {
             console.error(err);
             setError('Invitation introuvable ou expirée.'); // Generic safe message for user
