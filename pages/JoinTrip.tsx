@@ -25,44 +25,87 @@ const JoinTrip: React.FC = () => {
 
     const checkInvitation = async () => {
         try {
-            // Call RPC function to get invitation details (bypasses RLS)
-            const { data, error } = await supabase
+            // Try RPC first, fallback to old queries if RPC doesn't exist
+            const { data: rpcData, error: rpcError } = await supabase
                 .rpc('get_invitation_details', { invitation_token: token });
 
-            if (error) {
-                console.error('RPC error', error);
-                throw new Error('Erreur lors de la récupération de l\'invitation.');
-            }
+            if (rpcError && rpcError.code === 'PGRST202') {
+                // RPC doesn't exist, use fallback
+                console.warn('Using fallback for invitation check');
 
-            if (!data || data.length === 0) {
-                throw new Error('Invitation introuvable ou expirée.');
-            }
+                // Fallback: Old 2-step query
+                const { data: inviteData, error: inviteError } = await supabase
+                    .from('trip_invitations')
+                    .select('*')
+                    .eq('token', token)
+                    .single();
 
-            const invitationData = data[0];
-
-            // Transform RPC result to expected format
-            const invitation = {
-                id: invitationData.invitation_id,
-                trip_id: invitationData.trip_id,
-                token: invitationData.token,
-                status: invitationData.status,
-                expires_at: invitationData.expires_at
-            };
-
-            const trip = {
-                id: invitationData.trip_id,
-                title: invitationData.trip_title,
-                destination_country: invitationData.trip_destination,
-                start_date: invitationData.trip_start,
-                end_date: invitationData.trip_end,
-                owner: {
-                    username: invitationData.owner_username || 'Voyageur',
-                    emoji: invitationData.owner_emoji || '👤'
+                if (inviteError || !inviteData) {
+                    throw new Error('Invitation introuvable ou expirée.');
                 }
-            };
 
-            setInvitation(invitation as any);
-            setTrip(trip as any);
+                if (inviteData.status !== 'pending') {
+                    throw new Error('Cette invitation a déjà été utilisée.');
+                }
+
+                const expiresAt = new Date(inviteData.expires_at);
+                if (expiresAt < new Date()) {
+                    throw new Error('Ce lien d\'invitation a expiré.');
+                }
+
+                // Fetch trip separately (might fail due to RLS)
+                const { data: tripData, error: tripError } = await supabase
+                    .from('trips')
+                    .select('id, title, destination_country, start_date, end_date, user_id')
+                    .eq('id', inviteData.trip_id)
+                    .single();
+
+                if (tripError || !tripData) {
+                    throw new Error('Ce voyage n\'existe plus.');
+                }
+
+                // Fetch owner profile
+                const { data: ownerProfile } = await supabase
+                    .from('profiles')
+                    .select('username, emoji')
+                    .eq('id', tripData.user_id)
+                    .single();
+
+                setInvitation(inviteData as any);
+                setTrip({
+                    ...tripData,
+                    owner: ownerProfile || { username: 'Voyageur', emoji: '👤' }
+                } as any);
+            } else if (rpcError) {
+                throw new Error('Erreur lors de la récupération de l\'invitation.');
+            } else if (!rpcData || rpcData.length === 0) {
+                throw new Error('Invitation introuvable ou expirée.');
+            } else {
+                // RPC succeeded
+                const invitationData = rpcData[0];
+                const invitation = {
+                    id: invitationData.invitation_id,
+                    trip_id: invitationData.trip_id,
+                    token: invitationData.token,
+                    status: invitationData.status,
+                    expires_at: invitationData.expires_at
+                };
+
+                const trip = {
+                    id: invitationData.trip_id,
+                    title: invitationData.trip_title,
+                    destination_country: invitationData.trip_destination,
+                    start_date: invitationData.trip_start,
+                    end_date: invitationData.trip_end,
+                    owner: {
+                        username: invitationData.owner_username || 'Voyageur',
+                        emoji: invitationData.owner_emoji || '👤'
+                    }
+                };
+
+                setInvitation(invitation as any);
+                setTrip(trip as any);
+            }
         } catch (err: any) {
             console.error(err);
             setError(err.message || 'Invitation introuvable ou expirée.');
@@ -73,7 +116,6 @@ const JoinTrip: React.FC = () => {
 
     const handleAccept = async () => {
         if (!user) {
-            // Redirect to login with return URL
             navigate('/auth', { state: { returnUrl: `/join/${token}` } });
             return;
         }
@@ -81,20 +123,47 @@ const JoinTrip: React.FC = () => {
         try {
             setLoading(true);
 
-            // Call RPC to accept invitation (bypasses RLS)
-            const { data, error } = await supabase
+            // Try RPC first, fallback to direct operations if RPC doesn't exist
+            const { data: rpcData, error: rpcError } = await supabase
                 .rpc('accept_invitation', { invitation_token: token });
 
-            if (error) {
-                throw new Error(error.message || 'Erreur lors de l\'acceptation');
-            }
+            if (rpcError && rpcError.code === 'PGRST202') {
+                // RPC doesn't exist, use fallback
+                console.warn('Using fallback for accept invitation');
 
-            if (!data || !data.trip_id) {
+                if (!invitation?.trip_id) {
+                    throw new Error('Invitation invalide');
+                }
+
+                // Insert into trip_members
+                const { error: memberError } = await supabase
+                    .from('trip_members')
+                    .insert({
+                        trip_id: invitation.trip_id,
+                        user_id: user.id,
+                        role: 'viewer'
+                    });
+
+                if (memberError && memberError.code !== '23505') {
+                    // Ignore unique violation (already member)
+                    throw memberError;
+                }
+
+                // Update invitation status
+                await supabase
+                    .from('trip_invitations')
+                    .update({ status: 'accepted' })
+                    .eq('id', invitation.id);
+
+                navigate(`/trips/${invitation.trip_id}/day/1`);
+            } else if (rpcError) {
+                throw new Error(rpcError.message || 'Erreur lors de l\'acceptation');
+            } else if (!rpcData || !rpcData.trip_id) {
                 throw new Error('Erreur lors de l\'acceptation de l\'invitation');
+            } else {
+                // RPC succeeded
+                navigate(`/trips/${rpcData.trip_id}/day/1`);
             }
-
-            // Redirect to trip
-            navigate(`/trips/${data.trip_id}/day/1`);
 
         } catch (err: any) {
             alert('Erreur: ' + err.message);
