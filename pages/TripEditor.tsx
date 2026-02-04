@@ -817,8 +817,9 @@ const TripEditor: React.FC = () => {
     useEffect(() => {
         if (tripId) {
             fetchChecklist();
+            fetchMembers();
         }
-    }, [tripId, fetchChecklist]);
+    }, [tripId, fetchChecklist, fetchMembers]);
 
     const persistOrder = async (newCards: Card[]) => {
         const updates = newCards.map((card, index) => ({
