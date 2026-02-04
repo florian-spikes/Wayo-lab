@@ -633,16 +633,28 @@ const TripEditor: React.FC = () => {
             try {
                 // Ne charger les infos de base que si elles sont absentes ou si c'est l'init
                 if (isInitial) {
-                    // Use RPC to fetch trip (bypasses RLS issues)
-                    const { data: tripData, error: tripError } = await supabase
+                    // Try RPC first (bypasses RLS), fallback to direct query if RPC doesn't exist yet
+                    let tripData = null;
+                    const { data: rpcData, error: rpcError } = await supabase
                         .rpc('get_trip_for_member', { p_trip_id: tripId });
 
-                    if (tripError) {
-                        console.error('Error fetching trip:', tripError);
-                        // If RPC fails, user might not be a member
-                        setTrip(null);
-                    } else if (tripData && tripData.length > 0) {
-                        setTrip(tripData[0]);
+                    if (rpcError) {
+                        console.warn('RPC get_trip_for_member not available, using direct query:', rpcError);
+                        // Fallback to direct query (may fail if RLS blocks)
+                        const { data: directData, error: directError } = await supabase
+                            .from('trips')
+                            .select('*')
+                            .eq('id', tripId)
+                            .single();
+
+                        if (directError) {
+                            console.error('Error fetching trip:', directError);
+                            setTrip(null);
+                        } else {
+                            setTrip(directData);
+                        }
+                    } else if (rpcData && rpcData.length > 0) {
+                        setTrip(rpcData[0]);
                     } else {
                         setTrip(null);
                     }
