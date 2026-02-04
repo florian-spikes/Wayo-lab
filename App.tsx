@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import ProfilePage from './pages/Profile';
 import NewTrip from './pages/NewTrip';
 import TripEditor from './pages/TripEditor';
+import JoinTrip from './pages/JoinTrip';
 
 const LoadingScreen = () => (
   <div className="min-h-screen bg-dark-900 flex items-center justify-center">
@@ -55,6 +56,7 @@ const App: React.FC = () => {
 
       {/* Si déjà connecté, on n'affiche pas le login */}
       <Route path="/auth" element={!user ? <Auth /> : <Navigate to="/dashboard" replace />} />
+      <Route path="/join/:token" element={<JoinTrip />} />
 
       <Route
         path="/profile-setup"

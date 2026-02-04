@@ -46,7 +46,13 @@ import {
     Zap,
     Map,
     Smile,
-    Calendar
+    Calendar,
+    ShoppingBag,
+    TreePine,
+    CheckSquare,
+    AlertTriangle,
+    Send,
+    Link as LinkIcon
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 
@@ -114,13 +120,57 @@ const tripEmojiCategories = [
     { name: 'Nature', emojis: ['🌲', '🌵', '🌻', '🍃', '🌊', '❄️', '🔥', '⭐', '🌙', '☀️', '🌈', '🌩️'] }
 ];
 
-// --- Composant Carte Sortable ---
+// --- Liste des types d'évènements avec leurs icônes ---
+const EVENT_TYPES = [
+    { id: 'activité', icon: <ActivityIcon size={24} />, label: 'Activité', color: 'text-brand-500' },
+    { id: 'repas', icon: <Utensils size={24} />, label: 'Repas', color: 'text-orange-500' },
+    { id: 'transport', icon: <Car size={24} />, label: 'Transport', color: 'text-blue-500' },
+    { id: 'hébergement', icon: <Hotel size={24} />, label: 'Hébergement', color: 'text-indigo-500' },
+    { id: 'shopping', icon: <ShoppingBag size={24} />, label: 'Shopping', color: 'text-pink-500' },
+    { id: 'culture', icon: <BookOpen size={24} />, label: 'Culture', color: 'text-emerald-500' },
+    { id: 'nature', icon: <TreePine size={24} />, label: 'Nature', color: 'text-green-500' },
+    { id: 'autre', icon: <FileText size={24} />, label: 'Autre', color: 'text-gray-500' },
+];
+
 interface SortableCardProps {
     card: Card;
-    isLocked: boolean;
+    display_order: number;
+    checklist_count?: number; // Count of checklist items
 }
 
-const SortableCard: React.FC<SortableCardProps & { onEdit: (card: Card) => void }> = ({ card, isLocked, onEdit }) => {
+interface ChecklistItem {
+    id: string;
+    card_id: string;
+    is_completed: boolean;
+    created_at: string;
+    checklist_data?: {
+        label: string;
+    };
+}
+
+interface TripMember {
+    id: string;
+    trip_id: string;
+    user_id: string;
+    role: 'owner' | 'editor' | 'viewer';
+    user?: {
+        email: string;
+        user_metadata?: {
+            full_name?: string;
+            avatar_url?: string;
+        };
+    };
+}
+
+interface TripInvitation {
+    id: string;
+    email: string;
+    role: 'editor' | 'viewer';
+    status: 'pending' | 'accepted' | 'expired';
+    token: string;
+}
+
+const SortableCard: React.FC<SortableCardProps & { onEdit: (card: Card) => void }> = ({ card, isLocked, onEdit, checklistCount = 0 }) => {
     const {
         attributes,
         listeners,
@@ -140,14 +190,9 @@ const SortableCard: React.FC<SortableCardProps & { onEdit: (card: Card) => void 
         opacity: isDragging ? 0.5 : (isLocked ? 0.8 : 1)
     };
 
-    const getTypeIcon = (type: string) => {
-        switch (type.toLowerCase()) {
-            case 'repas': return <Utensils size={18} />;
-            case 'transport': return <Car size={18} />;
-            case 'activité': return <ActivityIcon size={18} />;
-            case 'hébergement': return <Hotel size={18} />;
-            default: return <FileText size={18} />;
-        }
+    const getTypeIcon = (type: string, size = 18) => {
+        const typeData = EVENT_TYPES.find(t => t.id === type.toLowerCase()) || EVENT_TYPES[EVENT_TYPES.length - 1];
+        return React.cloneElement(typeData.icon as React.ReactElement, { size });
     };
 
     return (
@@ -205,12 +250,57 @@ const SortableCard: React.FC<SortableCardProps & { onEdit: (card: Card) => void 
                             </span>
                         )}
                         {card.location_text && (
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-dark-900 rounded-lg text-gray-400 border border-white/5 capitalize">
-                                <MapPin size={12} className="text-brand-500" />
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-dark-900 rounded-lg text-gray-400 border border-white/5 capitalize text-[9px]">
+                                <MapPin size={10} className="text-brand-500" />
                                 {card.location_text}
                             </span>
                         )}
+                        {checklistCount > 0 && (
+                            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-brand-500/5 rounded-lg text-brand-500 border border-brand-500/10">
+                                <CheckSquare size={10} />
+                                {checklistCount} {checklistCount > 1 ? 'tâches' : 'tâche'}
+                            </span>
+                        )}
                     </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- Composant Confirmation Stylisé ---
+const GenericConfirmationModal: React.FC<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    onCancel: () => void;
+    variant?: 'danger' | 'warning';
+}> = ({ isOpen, title, message, onConfirm, onCancel, variant = 'danger' }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-md animate-in fade-in duration-300" onClick={onCancel}></div>
+            <div className="relative bg-dark-800 border border-white/10 rounded-[32px] p-8 max-w-sm w-full shadow-2xl animate-in zoom-in duration-200 text-center">
+                <div className={`w-20 h-20 mx-auto mb-6 rounded-full flex items-center justify-center ${variant === 'danger' ? 'bg-red-500/10 text-red-500' : 'bg-orange-500/10 text-orange-500'}`}>
+                    <AlertTriangle size={40} />
+                </div>
+                <h3 className="text-2xl font-black italic mb-3">{title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed mb-8">{message}</p>
+                <div className="flex flex-col gap-3">
+                    <button
+                        onClick={onConfirm}
+                        className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all active:scale-95 shadow-lg ${variant === 'danger' ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20' : 'bg-orange-500 hover:bg-orange-600 text-white shadow-orange-500/20'}`}
+                    >
+                        Confirmer
+                    </button>
+                    <button
+                        onClick={onCancel}
+                        className="w-full py-4 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all active:scale-95"
+                    >
+                        Annuler
+                    </button>
                 </div>
             </div>
         </div>
@@ -254,23 +344,46 @@ const TripEditor: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'itineraire' | 'preparation' | 'carnet'>('itineraire');
 
     const [editingCard, setEditingCard] = useState<Card | null>(null);
+    const [showIconSelect, setShowIconSelect] = useState(false);
     const [editData, setEditData] = useState<{
         title: string;
         description: string;
         location_text: string;
         start_time: string;
         end_time: string;
-        duration: number | 'custom'; // minutes or 'custom'
+        duration: number | 'custom';
+        type: string;
     }>({
         title: '',
         description: '',
         location_text: '',
         start_time: '',
         end_time: '',
-        duration: 60
+        duration: 60,
+        type: 'activité'
     });
 
+    const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+    const [allTripCards, setAllTripCards] = useState<Record<string, string>>({});
+    const [members, setMembers] = useState<TripMember[]>([]);
+    const [invitations, setInvitations] = useState<TripInvitation[]>([]);
+    const [showTravelersSheet, setShowTravelersSheet] = useState(false);
+    const [newChecklistItem, setNewChecklistItem] = useState('');
+
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [confirmConfig, setConfirmConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        variant?: 'danger' | 'warning';
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { },
+        variant: 'danger'
+    });
     const [tripEmoji, setTripEmoji] = useState('🚩');
 
     const activeDayIndex = parseInt(dayIndex || '1');
@@ -372,59 +485,69 @@ const TripEditor: React.FC = () => {
     };
 
     const handleDeleteDay = async () => {
-        if (!currentDay || !tripId) return;
         if (days.length <= 1) {
-            alert("Vous ne pouvez pas supprimer la dernière journée d'un voyage.");
+            setConfirmConfig({
+                isOpen: true,
+                title: "Action impossible",
+                message: "Vous ne pouvez pas supprimer la dernière journée d'un voyage.",
+                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+                variant: 'warning'
+            });
             return;
         }
 
-        if (!window.confirm(`Supprimer la journée J${currentDay.day_index} et toutes ses activités ?`)) {
-            return;
-        }
+        setConfirmConfig({
+            isOpen: true,
+            title: "Supprimer la journée ?",
+            message: `Êtes-vous sûr de vouloir supprimer la journée J${currentDay.day_index} et toutes ses activités ? Cette action est irréversible.`,
+            variant: 'danger',
+            onConfirm: async () => {
+                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                // 1. Supprimer les cartes associées
+                await supabase.from('cards').delete().eq('day_id', currentDay.id);
 
-        // 1. Supprimer les cartes associées
-        await supabase.from('cards').delete().eq('day_id', currentDay.id);
+                // 2. Supprimer la journée
+                const { error } = await supabase.from('trip_days').delete().eq('id', currentDay.id);
 
-        // 2. Supprimer la journée
-        const { error } = await supabase.from('trip_days').delete().eq('id', currentDay.id);
+                if (!error) {
+                    // 3. Réorganiser les index des jours restants
+                    const remainingDays = days.filter(d => d.id !== currentDay.id)
+                        .sort((a, b) => a.day_index - b.day_index);
 
-        if (!error) {
-            // 3. Réorganiser les index des jours restants
-            const remainingDays = days.filter(d => d.id !== currentDay.id)
-                .sort((a, b) => a.day_index - b.day_index);
+                    const updatedDays = await Promise.all(remainingDays.map(async (day, index) => {
+                        const newIndex = index + 1;
+                        let newDate = null;
+                        if (trip?.start_date) {
+                            const d = new Date(trip.start_date);
+                            d.setDate(d.getDate() + index);
+                            newDate = d.toISOString().split('T')[0];
+                        }
 
-            const updatedDays = await Promise.all(remainingDays.map(async (day, index) => {
-                const newIndex = index + 1;
-                let newDate = null;
-                if (trip?.start_date) {
-                    const d = new Date(trip.start_date);
-                    d.setDate(d.getDate() + index);
-                    newDate = d.toISOString().split('T')[0];
+                        if (day.day_index !== newIndex || day.date !== newDate) {
+                            await supabase.from('trip_days')
+                                .update({ day_index: newIndex, date: newDate })
+                                .eq('id', day.id);
+                            return { ...day, day_index: newIndex, date: newDate };
+                        }
+                        return day;
+                    }));
+
+                    // 4. Mettre à jour le voyage (durée et date de fin)
+                    const newDuration = updatedDays.length;
+                    const newEndDate = updatedDays[updatedDays.length - 1]?.date || trip?.start_date;
+
+                    await supabase.from('trips')
+                        .update({ duration_days: newDuration, end_date: newEndDate })
+                        .eq('id', tripId);
+
+                    setTrip(prev => prev ? { ...prev, duration_days: newDuration, end_date: newEndDate } : null);
+                    setDays(updatedDays);
+
+                    // 5. Rediriger vers le premier jour
+                    navigate(`/trips/${tripId}/day/1`);
                 }
-
-                if (day.day_index !== newIndex || day.date !== newDate) {
-                    await supabase.from('trip_days')
-                        .update({ day_index: newIndex, date: newDate })
-                        .eq('id', day.id);
-                    return { ...day, day_index: newIndex, date: newDate };
-                }
-                return day;
-            }));
-
-            // 4. Mettre à jour le voyage (durée et date de fin)
-            const newDuration = updatedDays.length;
-            const newEndDate = updatedDays[updatedDays.length - 1]?.date || trip?.start_date;
-
-            await supabase.from('trips')
-                .update({ duration_days: newDuration, end_date: newEndDate })
-                .eq('id', tripId);
-
-            setTrip(prev => prev ? { ...prev, duration_days: newDuration, end_date: newEndDate } : null);
-            setDays(updatedDays);
-
-            // 5. Rediriger vers le premier jour
-            navigate(`/trips/${tripId}/day/1`);
-        }
+            }
+        });
     };
 
     const handleUpdateCard = async () => {
@@ -438,6 +561,7 @@ const TripEditor: React.FC = () => {
                 location_text: editData.location_text,
                 start_time: editData.start_time || null,
                 end_time: editData.end_time || null,
+                type: editData.type,
                 updated_at: new Date().toISOString()
             })
             .eq('id', editingCard.id)
@@ -451,12 +575,20 @@ const TripEditor: React.FC = () => {
     };
 
     const handleDeleteCard = async (id: string) => {
-        if (!window.confirm("Supprimer ce moment ?")) return;
-        const { error } = await supabase.from('cards').delete().eq('id', id);
-        if (!error) {
-            setCards(prev => prev.filter(c => c.id !== id));
-            setEditingCard(null);
-        }
+        setConfirmConfig({
+            isOpen: true,
+            title: "Supprimer l'évènement ?",
+            message: "Êtes-vous sûr de vouloir supprimer cette étape ? Les notes et horaires associés seront perdus.",
+            variant: 'danger',
+            onConfirm: async () => {
+                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                const { error } = await supabase.from('cards').delete().eq('id', id);
+                if (!error) {
+                    setCards(prev => prev.filter(c => c.id !== id));
+                    setEditingCard(null);
+                }
+            }
+        });
     };
 
     const openEdit = (card: Card) => {
@@ -480,7 +612,8 @@ const TripEditor: React.FC = () => {
             location_text: card.location_text || '',
             start_time: card.start_time?.slice(0, 5) || '',
             end_time: card.end_time?.slice(0, 5) || '',
-            duration: initialDuration
+            duration: initialDuration,
+            type: card.type
         });
     };
 
@@ -544,6 +677,103 @@ const TripEditor: React.FC = () => {
             setTripEmoji(trip.preferences.emoji);
         }
     }, [trip]);
+
+    const getTypeIcon = (type: string, size = 18) => {
+        const typeData = EVENT_TYPES.find(t => t.id === type.toLowerCase()) || EVENT_TYPES[EVENT_TYPES.length - 1];
+        return React.cloneElement(typeData.icon as React.ReactElement, { size });
+    };
+
+    const fetchMembers = useCallback(async () => {
+        if (!tripId) return;
+
+        // Fetch members with user details
+        const { data: membersData, error: membersError } = await supabase
+            .from('trip_members')
+            .select(`
+                *,
+                user:user_id (
+                    email,
+                    user_metadata
+                )
+            `)
+            .eq('trip_id', tripId);
+
+        if (!membersError && membersData) {
+            // @ts-ignore - Supabase types mapping for joined tables can be tricky
+            setMembers(membersData);
+        }
+
+        // Fetch pending invitations
+        const { data: invitesData, error: invitesError } = await supabase
+            .from('trip_invitations')
+            .select('*')
+            .eq('trip_id', tripId)
+            .eq('status', 'pending');
+
+        if (!invitesError && invitesData) {
+            setInvitations(invitesData as TripInvitation[]);
+        }
+    }, [tripId]);
+
+    const fetchChecklist = useCallback(async () => {
+        if (!tripId) return;
+
+        // Fetch checklist items
+        const { data: checklistData } = await supabase
+            .from('checklists')
+            .select('*')
+            .eq('trip_id', tripId)
+            .order('created_at', { ascending: true });
+
+        if (checklistData) setChecklistItems(checklistData);
+
+        // Fetch all card titles for this trip to resolve names in checklist
+        const { data: cardsData } = await supabase
+            .from('cards')
+            .select('id, title')
+            .eq('trip_id', tripId);
+
+        if (cardsData) {
+            const cardMap: Record<string, string> = {};
+            cardsData.forEach(c => cardMap[c.id] = c.title);
+            setAllTripCards(cardMap);
+        }
+    }, [tripId]);
+
+    const handleAddChecklistItem = async () => {
+        if (!newChecklistItem.trim() || !user || !tripId) return;
+
+        const { error } = await supabase.from('checklists').insert({
+            user_id: user.id,
+            trip_id: tripId,
+            card_id: editingCard?.id || null,
+            checklist_data: { label: newChecklistItem, category: 'À faire', done: false }
+        });
+
+        if (!error) {
+            setNewChecklistItem('');
+            fetchChecklist();
+        }
+    };
+
+    const handleToggleChecklist = async (id: string, currentStatus: boolean) => {
+        const { error } = await supabase
+            .from('checklists')
+            .update({ is_completed: !currentStatus })
+            .eq('id', id);
+
+        if (!error) {
+            setChecklistItems(prev => prev.map(item =>
+                item.id === id ? { ...item, is_completed: !currentStatus } : item
+            ));
+        }
+    };
+
+    useEffect(() => {
+        if (tripId) {
+            fetchChecklist();
+        }
+    }, [tripId, fetchChecklist]);
 
     const persistOrder = async (newCards: Card[]) => {
         const updates = newCards.map((card, index) => ({
@@ -619,6 +849,58 @@ const TripEditor: React.FC = () => {
         }
     };
 
+    const handleInviteEmail = async (email: string, role: 'editor' | 'viewer') => {
+        if (!tripId || !email || !user) return;
+
+        // Check if already member
+        // (Simplified check)
+
+        const token = crypto.randomUUID();
+        const { error } = await supabase.from('trip_invitations').insert({
+            trip_id: tripId,
+            email,
+            role,
+            token,
+            created_by: user.id,
+            status: 'pending'
+        });
+
+        if (!error) {
+            fetchMembers();
+            setInviteEmail('');
+            alert('Invitation envoyée !');
+        } else {
+            alert('Erreur lors de l\'envoi de l\'invitation.');
+            console.error(error);
+        }
+    };
+
+    const handleGenerateLink = async () => {
+        if (!tripId || !user) return;
+        const token = crypto.randomUUID();
+        // Create a generic invitation (email is null or handled as generic)
+        // For this implementations, let's say we create a generic link that anyone can claim?
+        // Or we just generate a token that redirects to signin.
+        // The schema allows null email.
+
+        const { error } = await supabase.from('trip_invitations').insert({
+            trip_id: tripId,
+            token,
+            role: 'viewer',
+            created_by: user.id,
+            status: 'pending'
+        });
+
+        if (!error) {
+            const link = `${window.location.origin}/join/${token}`;
+            navigator.clipboard.writeText(link);
+            alert('Lien d\'invitation copié dans le presse-papier !');
+        }
+    };
+
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('viewer');
+
     if (isInitialLoading) {
         return (
             <div className="min-h-screen bg-dark-900 flex items-center justify-center">
@@ -632,6 +914,17 @@ const TripEditor: React.FC = () => {
     const formattedDate = currentDay?.date
         ? new Date(currentDay.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
         : `Jour ${activeDayIndex}`;
+
+    const allDaysLocked = days.length > 0 && days.every(d => d.status === 'locked');
+
+    const hasChanges = !!editingCard && (
+        editData.title !== editingCard.title ||
+        editData.description !== (editingCard.description || '') ||
+        editData.location_text !== (editingCard.location_text || '') ||
+        editData.start_time !== (editingCard.start_time?.slice(0, 5) || '') ||
+        editData.end_time !== (editingCard.end_time?.slice(0, 5) || '') ||
+        editData.type !== editingCard.type
+    );
 
     return (
         <div className="min-h-screen bg-dark-900 text-white pb-40 overflow-x-hidden">
@@ -674,9 +967,9 @@ const TripEditor: React.FC = () => {
                         {/* Trip Info */}
                         <div className="flex-1 space-y-4">
                             <div className="flex flex-wrap justify-center md:justify-start gap-2 mb-2">
-                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors ${currentDay?.status === 'locked' ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20' : 'bg-green-500/10 text-green-500 border border-green-500/20'}`}>
-                                    {currentDay?.status === 'locked' ? <Lock size={10} /> : <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>}
-                                    {currentDay?.status === 'locked' ? 'Verrouillé' : 'Voyage en cours'}
+                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors ${allDaysLocked ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-orange-500/10 text-orange-500 border border-orange-500/20'}`}>
+                                    {allDaysLocked ? <ShieldCheck size={10} /> : <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></div>}
+                                    {allDaysLocked ? 'Prévu' : 'En préparation'}
                                 </span>
                                 <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-gray-400">
                                     {trip.duration_days} Jours
@@ -714,19 +1007,36 @@ const TripEditor: React.FC = () => {
                         <div className="flex flex-col items-center md:items-end gap-3 mt-4 md:mt-0">
                             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-600">Explorateurs</span>
                             <div className="flex -space-x-3">
-                                {[
-                                    { emoji: '🌻', name: 'Toi' },
-                                    { emoji: '🦊', name: 'Léo' },
-                                    { emoji: '🐼', name: 'Mina' }
-                                ].map((p, i) => (
-                                    <div key={i} className="w-12 h-12 rounded-full bg-dark-800 border-2 border-dark-900 flex items-center justify-center text-2xl shadow-lg hover:-translate-y-1 transition-transform cursor-pointer group relative">
-                                        {p.emoji}
-                                        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-white text-dark-900 text-[10px] font-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
-                                            {p.name}
+                                {members.slice(0, 3).map((member, i) => (
+                                    <div
+                                        key={member.id}
+                                        onClick={() => setShowTravelersSheet(true)}
+                                        className="w-12 h-12 rounded-full bg-dark-800 border-2 border-dark-900 flex items-center justify-center text-sm font-bold text-gray-300 shadow-lg hover:-translate-y-1 transition-transform cursor-pointer group relative overflow-hidden"
+                                    >
+                                        {member.user?.user_metadata?.avatar_url ? (
+                                            <img src={member.user.user_metadata.avatar_url} alt={member.user.email} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="bg-brand-500/10 w-full h-full flex items-center justify-center text-brand-500">
+                                                {member.user?.email?.[0].toUpperCase() || '?'}
+                                            </div>
+                                        )}
+                                        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-white text-dark-900 text-[10px] font-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20">
+                                            {member.user?.user_metadata?.full_name || member.user?.email?.split('@')[0] || 'Inconnu'}
                                         </div>
                                     </div>
                                 ))}
-                                <button className="w-12 h-12 rounded-full bg-brand-500/10 border-2 border-dashed border-brand-500/30 flex items-center justify-center text-brand-500 hover:bg-brand-500 hover:text-white transition-all">
+                                {members.length > 3 && (
+                                    <div
+                                        onClick={() => setShowTravelersSheet(true)}
+                                        className="w-12 h-12 rounded-full bg-dark-800 border-2 border-dark-900 flex items-center justify-center text-xs font-bold text-gray-400 cursor-pointer hover:text-white"
+                                    >
+                                        +{members.length - 3}
+                                    </div>
+                                )}
+                                <button
+                                    onClick={() => setShowTravelersSheet(true)}
+                                    className="w-12 h-12 rounded-full bg-brand-500/10 border-2 border-dashed border-brand-500/30 flex items-center justify-center text-brand-500 hover:bg-brand-500 hover:text-white transition-all z-10"
+                                >
                                     <Plus size={20} />
                                 </button>
                             </div>
@@ -814,7 +1124,7 @@ const TripEditor: React.FC = () => {
                                     <div className="w-1 h-1 rounded-full bg-white/10"></div>
                                     <div className="flex items-center gap-1.5 uppercase tracking-widest text-[10px]">
                                         <Zap size={12} className="text-brand-500/50" />
-                                        {isDayLoading ? 'Chargement...' : `${cards.length} moment(s)`}
+                                        {isDayLoading ? 'Chargement...' : `${cards.length} évènement${cards.length > 1 ? 's' : ''}`}
                                     </div>
                                 </div>
                             </div>
@@ -837,7 +1147,7 @@ const TripEditor: React.FC = () => {
 
                                 <button
                                     onClick={handleDeleteDay}
-                                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-500/5 border border-red-500/10 text-red-500/40 hover:text-red-500 hover:bg-red-500/10 hover:border-red-500/30 transition-all group"
+                                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 hover:text-white hover:bg-red-500 hover:border-red-600 transition-all group scale-105"
                                     title="Supprimer cette journée"
                                 >
                                     <Trash2 size={16} className="group-hover:scale-110 transition-transform" />
@@ -883,6 +1193,7 @@ const TripEditor: React.FC = () => {
                                                     card={card}
                                                     isLocked={currentDay?.status === 'locked'}
                                                     onEdit={() => openEdit(card)}
+                                                    checklistCount={checklistItems.filter(i => i.card_id === card.id).length}
                                                 />
                                             ))}
                                         </SortableContext>
@@ -918,14 +1229,19 @@ const TripEditor: React.FC = () => {
                         <div className="mt-8 bg-dark-800/50 border border-white/5 rounded-3xl p-6">
                             <div className="flex justify-between items-end mb-4">
                                 <span className="text-xs font-black uppercase tracking-widest text-gray-400">Progression</span>
-                                <span className="text-2xl font-black text-brand-500">80% prêt</span>
+                                <span className="text-2xl font-black text-brand-500">
+                                    {checklistItems.length > 0 ? Math.round((checklistItems.filter(i => i.is_completed).length / checklistItems.length) * 100) : 0}% prêt
+                                </span>
                             </div>
                             <div className="h-3 bg-dark-900 rounded-full overflow-hidden border border-white/5">
-                                <div className="h-full bg-brand-500 shadow-[0_0_15px_rgba(249,115,22,0.4)] transition-all duration-1000" style={{ width: '80%' }}></div>
+                                <div
+                                    className="h-full bg-brand-500 shadow-[0_0_15px_rgba(249,115,22,0.4)] transition-all duration-1000"
+                                    style={{ width: `${checklistItems.length > 0 ? (checklistItems.filter(i => i.is_completed).length / checklistItems.length) * 100 : 0}%` }}
+                                ></div>
                             </div>
                             <div className="mt-4 flex items-center gap-2 text-sm text-gray-400 font-bold">
                                 <Sparkles size={16} className="text-brand-500" />
-                                5 actions prioritaires recommandées
+                                {checklistItems.filter(i => !i.is_completed).length} actions en attente
                             </div>
                         </div>
                     </div>
@@ -979,31 +1295,52 @@ const TripEditor: React.FC = () => {
                     <div className="space-y-6">
                         <div className="flex justify-between items-center">
                             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-600 ml-2">Checklist Structurée</h3>
-                            <button className="text-[10px] font-black uppercase text-brand-500 px-3 py-1 bg-brand-500/10 rounded-full">Explorer tout</button>
                         </div>
 
                         <div className="space-y-3">
-                            {[
-                                { label: 'Vérifier validité passeport (+6 mois)', cat: 'Documents', done: true },
-                                { label: 'Souscrire assurance voyage', cat: 'Réservations', done: false },
-                                { label: 'Trousse à pharmacie ROADTRIP', cat: 'Santé', done: false },
-                                { label: 'Télécharger cartes hors-ligne', cat: 'Transport', done: false },
-                            ].map((item, i) => (
-                                <div key={i} className="bg-dark-800/50 p-5 rounded-2xl border border-white/5 flex items-center justify-between group">
-                                    <div className="flex items-center gap-4">
-                                        <button className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${item.done ? 'bg-green-500 border-green-500 text-white' : 'border-white/10'}`}>
-                                            {item.done && <Check size={14} />}
-                                        </button>
-                                        <div>
-                                            <div className={`text-sm font-bold ${item.done ? 'line-through text-gray-600' : 'text-white'}`}>{item.label}</div>
-                                            <div className="text-[9px] font-black uppercase tracking-widest text-gray-500 mt-0.5">{item.cat}</div>
-                                        </div>
-                                    </div>
-                                    <button className="opacity-0 group-hover:opacity-100 p-2 text-gray-600 hover:text-white transition-all">
-                                        <MoreVertical size={16} />
-                                    </button>
+                            {checklistItems.length === 0 ? (
+                                <div className="p-12 text-center border border-dashed border-white/5 rounded-[32px] text-gray-500 font-bold">
+                                    Aucune tâche ajoutée pour le moment.
                                 </div>
-                            ))}
+                            ) : (
+                                checklistItems.map((item) => (
+                                    <div key={item.id} className="bg-dark-800/50 p-5 rounded-2xl border border-white/5 flex items-center justify-between group">
+                                        <div className="flex items-center gap-4">
+                                            <button
+                                                onClick={() => handleToggleChecklist(item.id, item.is_completed)}
+                                                className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${item.is_completed ? 'bg-green-500 border-green-500 text-white' : 'border-white/10 hover:border-brand-500/50'}`}
+                                            >
+                                                {item.is_completed && <Check size={14} />}
+                                            </button>
+                                            <div>
+                                                <div className={`text-sm font-bold ${item.is_completed ? 'line-through text-gray-600' : 'text-white'}`}>
+                                                    {item.checklist_data?.label || 'Tâche sans nom'}
+                                                </div>
+                                                <div className="text-[9px] font-black uppercase tracking-widest text-gray-500 mt-0.5 flex items-center gap-2">
+                                                    {item.checklist_data?.category || 'Général'}
+                                                    {item.card_id && (
+                                                        <>
+                                                            <span className="w-1 h-1 rounded-full bg-white/10"></span>
+                                                            <span className="text-brand-500/50 flex items-center gap-1">
+                                                                <Zap size={8} /> {allTripCards[item.card_id] || 'Évènement lié'}
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                const { error } = await supabase.from('checklists').delete().eq('id', item.id);
+                                                if (!error) setChecklistItems(prev => prev.filter(i => i.id !== item.id));
+                                            }}
+                                            className="opacity-0 group-hover:opacity-100 p-2 text-gray-600 hover:text-red-500 transition-all"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
                 </main>
@@ -1205,192 +1542,415 @@ const TripEditor: React.FC = () => {
                 )
             }
 
-            {/* Edit Moment Sheet */}
+            {/* Edit Moment Off-Canvas Panel */}
             {
                 editingCard && (
-                    <div className="fixed inset-0 z-[110] flex items-center justify-center px-4">
-                        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setEditingCard(null)}></div>
-                        <div className="relative bg-dark-800 border border-white/10 rounded-[40px] p-8 w-full max-w-xl shadow-2xl animate-in zoom-in duration-300">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-2xl font-black italic flex items-center gap-3">
-                                    Modifier le moment
-                                </h3>
-                                <button onClick={() => handleDeleteCard(editingCard.id)} className="p-2 text-gray-500 hover:text-red-400 transition-colors">
-                                    <Trash2 size={20} />
-                                </button>
+                    <div className="fixed inset-0 z-[110] flex justify-end">
+                        <div
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-500"
+                            onClick={() => setEditingCard(null)}
+                        ></div>
+
+                        <div className="relative bg-dark-900 border-l border-white/5 w-full md:w-[480px] h-full shadow-2xl animate-in slide-in-from-right duration-500 flex flex-col">
+                            {/* Panel Header */}
+                            <div className="p-8 border-b border-white/5 flex justify-between items-center bg-dark-800/50">
+                                <div>
+                                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-500 mb-1">Édition de l'étape</h3>
+                                    <p className="text-xl font-black italic">Détails de l'évènement</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handleDeleteCard(editingCard.id)}
+                                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-500/5 text-red-500/40 hover:text-red-500 hover:bg-red-500/10 transition-all"
+                                        title="Supprimer"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                    <button
+                                        onClick={() => setEditingCard(null)}
+                                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
                             </div>
 
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase ml-1">Titre</label>
-                                    <input
-                                        type="text"
-                                        value={editData.title}
-                                        onChange={e => setEditData({ ...editData, title: e.target.value })}
-                                        className="w-full bg-dark-900 border border-white/5 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
-                                    />
+                            <div className="flex-1 overflow-y-auto p-8 space-y-8 no-scrollbar">
+                                {/* Type/Icon Selection Section */}
+                                <div className="flex flex-col items-center justify-center py-6">
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setShowIconSelect(!showIconSelect)}
+                                            className="w-16 h-16 bg-dark-800 rounded-3xl border border-white/5 flex items-center justify-center text-brand-500 shadow-inner hover:border-brand-500/30 transition-all ring-offset-4 ring-offset-dark-900 focus:ring-2 ring-brand-500/20"
+                                        >
+                                            {getTypeIcon(editData.type, 32)}
+                                        </button>
+
+                                        {/* Icon Picker Popover on Click */}
+                                        {showIconSelect && (
+                                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-4 z-50 animate-in zoom-in fade-in duration-200">
+                                                <div className="bg-dark-800 border border-white/10 rounded-2xl p-2 shadow-2xl flex gap-1 items-center whitespace-nowrap">
+                                                    {EVENT_TYPES.map(t => (
+                                                        <button
+                                                            key={t.id}
+                                                            onClick={() => {
+                                                                setEditData({ ...editData, type: t.id });
+                                                                setShowIconSelect(false);
+                                                            }}
+                                                            className={`p-2 rounded-lg transition-all ${editData.type === t.id ? 'bg-brand-500 text-white' : 'hover:bg-white/5 text-gray-500 hover:text-white'}`}
+                                                            title={t.label}
+                                                        >
+                                                            {React.cloneElement(t.icon as React.ReactElement, { size: 18 })}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <span className="mt-4 text-[10px] font-black uppercase tracking-widest text-gray-500">Choisir le type d'étape</span>
                                 </div>
-                                <div className="space-y-4 bg-dark-900/50 p-6 rounded-3xl border border-white/5">
-                                    <div className="grid grid-cols-2 gap-6">
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Heure de début</label>
-                                            <div className="relative">
-                                                <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-500" size={16} />
-                                                <input
-                                                    type="time"
-                                                    value={editData.start_time}
-                                                    onChange={e => {
-                                                        const start = e.target.value;
-                                                        let end = editData.end_time;
 
-                                                        if (editData.duration !== 'custom') {
-                                                            const [h, m] = start.split(':').map(Number);
-                                                            const totalMinutes = h * 60 + m + (editData.duration as number);
-                                                            const eh = Math.floor(totalMinutes / 60) % 24;
-                                                            const em = totalMinutes % 60;
-                                                            end = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
-                                                        }
-
-                                                        setEditData({ ...editData, start_time: start, end_time: end });
-                                                    }}
-                                                    className="w-full bg-dark-900 border border-white/5 rounded-2xl h-[50px] pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">
-                                                {editData.duration === 'custom' ? 'Heure de fin' : 'Fin prévue'}
-                                            </label>
-                                            <div className="relative">
-                                                {editData.duration === 'custom' ? (
-                                                    <input
-                                                        type="time"
-                                                        value={editData.end_time}
-                                                        onChange={e => setEditData({ ...editData, end_time: e.target.value })}
-                                                        className="w-full bg-dark-900 border border-brand-500/50 rounded-2xl h-[50px] px-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold animate-in fade-in duration-300"
-                                                    />
-                                                ) : (
-                                                    <div className="h-[50px] flex items-center px-4 bg-dark-950/50 rounded-2xl border border-white/5 text-gray-500 font-black text-lg">
-                                                        {editData.end_time || '--:--'}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
+                                <div className="space-y-6">
+                                    {/* Title Section */}
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Titre de l'évènement</label>
+                                        <input
+                                            type="text"
+                                            value={editData.title}
+                                            onChange={e => setEditData({ ...editData, title: e.target.value })}
+                                            className="w-full bg-dark-800 border border-white/5 rounded-2xl h-[50px] px-6 text-xl font-black text-white focus:outline-none focus:border-brand-500 focus:bg-dark-800/80 transition-all placeholder:text-white/10"
+                                            placeholder="Nommez votre moment..."
+                                        />
                                     </div>
 
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Durée de l'étape</label>
+                                    <div className="space-y-4 bg-dark-800/50 p-6 rounded-3xl border border-white/5">
+                                        <div className="grid grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Heure de début</label>
+                                                <div className="relative">
+                                                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-500" size={16} />
+                                                    <input
+                                                        type="time"
+                                                        value={editData.start_time}
+                                                        onChange={e => {
+                                                            const start = e.target.value;
+                                                            let end = editData.end_time;
+                                                            if (editData.duration !== 'custom') {
+                                                                const [h, m] = start.split(':').map(Number);
+                                                                const totalMinutes = h * 60 + m + (editData.duration as number);
+                                                                const eh = Math.floor(totalMinutes / 60) % 24;
+                                                                const em = totalMinutes % 60;
+                                                                end = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+                                                            }
+                                                            setEditData({ ...editData, start_time: start, end_time: end });
+                                                        }}
+                                                        className="w-full bg-dark-900 border border-white/5 rounded-2xl h-[50px] pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">
+                                                    {editData.duration === 'custom' ? 'Heure de fin' : 'Fin prévue'}
+                                                </label>
+                                                <div className="relative">
+                                                    {editData.duration === 'custom' ? (
+                                                        <input
+                                                            type="time"
+                                                            value={editData.end_time}
+                                                            onChange={e => setEditData({ ...editData, end_time: e.target.value })}
+                                                            className="w-full bg-dark-900 border border-brand-500/50 rounded-2xl h-[50px] px-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold animate-in fade-in duration-300"
+                                                        />
+                                                    ) : (
+                                                        <div className="h-[50px] flex items-center px-4 bg-dark-950/50 rounded-2xl border border-white/5 text-gray-500 font-black text-lg">
+                                                            {editData.end_time || '--:--'}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                        {/* Desktop Buttons */}
-                                        <div className="hidden sm:flex flex-wrap gap-2">
-                                            {[
-                                                { label: '30m', val: 30 },
-                                                { label: '1h', val: 60 },
-                                                { label: '1h30', val: 90 },
-                                                { label: '2h', val: 120 },
-                                                { label: '3h', val: 180 },
-                                                { label: 'Autre', val: 'custom' },
-                                            ].map(d => (
-                                                <button
-                                                    key={d.label}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        if (d.val === 'custom') {
+                                        <div className="space-y-3">
+                                            <div className="hidden sm:flex flex-wrap gap-2">
+                                                {[
+                                                    { label: '30m', val: 30 },
+                                                    { label: '1h', val: 60 },
+                                                    { label: '1h30', val: 90 },
+                                                    { label: '2h', val: 120 },
+                                                    { label: '3h', val: 180 },
+                                                    { label: 'Autre', val: 'custom' },
+                                                ].map(d => (
+                                                    <button
+                                                        key={d.label}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (d.val === 'custom') {
+                                                                setEditData({ ...editData, duration: 'custom' });
+                                                                return;
+                                                            }
+                                                            if (!editData.start_time) return;
+                                                            const [h, m] = editData.start_time.split(':').map(Number);
+                                                            const totalMinutes = h * 60 + m + (d.val as number);
+                                                            const eh = Math.floor(totalMinutes / 60) % 24;
+                                                            const em = totalMinutes % 60;
+                                                            const end = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+                                                            setEditData({ ...editData, duration: d.val as number, end_time: end });
+                                                        }}
+                                                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${editData.duration === d.val ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/20 px-6' : 'bg-dark-900 text-gray-400 hover:text-white border border-white/5'}`}
+                                                    >
+                                                        {d.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <div className="sm:hidden">
+                                                <select
+                                                    value={editData.duration}
+                                                    onChange={e => {
+                                                        const val = e.target.value === 'custom' ? 'custom' : Number(e.target.value);
+                                                        if (val === 'custom') {
                                                             setEditData({ ...editData, duration: 'custom' });
                                                             return;
                                                         }
-
                                                         if (!editData.start_time) return;
                                                         const [h, m] = editData.start_time.split(':').map(Number);
-                                                        const totalMinutes = h * 60 + m + (d.val as number);
+                                                        const totalMinutes = h * 60 + m + (val as number);
                                                         const eh = Math.floor(totalMinutes / 60) % 24;
                                                         const em = totalMinutes % 60;
                                                         const end = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
-                                                        setEditData({ ...editData, duration: d.val as number, end_time: end });
+                                                        setEditData({ ...editData, duration: val, end_time: end });
                                                     }}
-                                                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${editData.duration === d.val ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/20 px-6' : 'bg-dark-900 text-gray-400 hover:text-white border border-white/5'}`}
+                                                    className="w-full bg-dark-900 border border-white/5 rounded-2xl h-[50px] px-4 text-white font-bold appearance-none focus:outline-none focus:border-brand-500"
                                                 >
-                                                    {d.label}
-                                                </button>
+                                                    <option value={30}>30 minutes</option>
+                                                    <option value={60}>1 heure</option>
+                                                    <option value={90}>1 heure 30</option>
+                                                    <option value={120}>2 heures</option>
+                                                    <option value={180}>3 heures</option>
+                                                    <option value="custom">Autre (Saisie manuelle)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Lieu</label>
+                                        <div className="relative">
+                                            <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                                            <input
+                                                type="text"
+                                                placeholder="Ex: Musée du Louvre"
+                                                value={editData.location_text}
+                                                onChange={e => setEditData({ ...editData, location_text: e.target.value })}
+                                                className="w-full bg-dark-800 border border-white/5 rounded-2xl h-[50px] pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4 pt-4 border-t border-white/5">
+                                        <div className="flex items-center gap-2">
+                                            <CheckSquare size={16} className="text-brand-500" />
+                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Checklist de l'étape</h4>
+                                        </div>
+
+                                        {/* Liste des tâches déjà ajoutées pour cet évènement */}
+                                        <div className="space-y-2 mb-4">
+                                            {checklistItems.filter(item => item.card_id === editingCard.id).map((item) => (
+                                                <div key={item.id} className="bg-dark-900 border border-white/5 rounded-xl p-3 flex items-center justify-between group animate-in slide-in-from-left-2 duration-300">
+                                                    <div className="flex items-center gap-3">
+                                                        <button
+                                                            onClick={() => handleToggleChecklist(item.id, item.is_completed)}
+                                                            className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${item.is_completed ? 'bg-green-500 border-green-500 text-white' : 'border-white/10 hover:border-brand-500/50'}`}
+                                                        >
+                                                            {item.is_completed && <Check size={12} />}
+                                                        </button>
+                                                        <span className={`text-xs font-bold ${item.is_completed ? 'line-through text-gray-600' : 'text-gray-300'}`}>
+                                                            {item.checklist_data?.label}
+                                                        </span>
+                                                    </div>
+                                                    <button
+                                                        onClick={async () => {
+                                                            const { error } = await supabase.from('checklists').delete().eq('id', item.id);
+                                                            if (!error) setChecklistItems(prev => prev.filter(i => i.id !== item.id));
+                                                        }}
+                                                        className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-600 hover:text-red-500 transition-all"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
                                             ))}
                                         </div>
 
-                                        {/* Mobile Select */}
-                                        <div className="sm:hidden">
-                                            <select
-                                                value={editData.duration}
-                                                onChange={e => {
-                                                    const val = e.target.value === 'custom' ? 'custom' : Number(e.target.value);
-                                                    if (val === 'custom') {
-                                                        setEditData({ ...editData, duration: 'custom' });
-                                                        return;
-                                                    }
-
-                                                    if (!editData.start_time) return;
-                                                    const [h, m] = editData.start_time.split(':').map(Number);
-                                                    const totalMinutes = h * 60 + m + (val as number);
-                                                    const eh = Math.floor(totalMinutes / 60) % 24;
-                                                    const em = totalMinutes % 60;
-                                                    const end = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
-                                                    setEditData({ ...editData, duration: val, end_time: end });
-                                                }}
-                                                className="w-full bg-dark-900 border border-white/5 rounded-2xl h-[50px] px-4 text-white font-bold appearance-none focus:outline-none focus:border-brand-500"
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                placeholder="Ajouter une tâche..."
+                                                value={newChecklistItem}
+                                                onChange={e => setNewChecklistItem(e.target.value)}
+                                                className="flex-1 bg-dark-800 border border-white/5 rounded-2xl h-[50px] px-6 text-sm text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
+                                                onKeyDown={e => e.key === 'Enter' && handleAddChecklistItem()}
+                                            />
+                                            <button
+                                                onClick={handleAddChecklistItem}
+                                                className="w-[50px] h-[50px] flex items-center justify-center rounded-2xl bg-brand-500 text-white hover:bg-brand-600 transition-all shadow-lg active:scale-95"
                                             >
-                                                <option value={30}>30 minutes</option>
-                                                <option value={60}>1 heure</option>
-                                                <option value={90}>1 heure 30</option>
-                                                <option value={120}>2 heures</option>
-                                                <option value={180}>3 heures</option>
-                                                <option value="custom">Autre (Saisie manuelle)</option>
-                                            </select>
+                                                <Plus size={20} />
+                                            </button>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Lieu</label>
-                                    <div className="relative">
-                                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
-                                        <input
-                                            type="text"
-                                            placeholder="Ex: Musée du Louvre"
-                                            value={editData.location_text}
-                                            onChange={e => setEditData({ ...editData, location_text: e.target.value })}
-                                            className="w-full bg-dark-900 border border-white/5 rounded-2xl h-[50px] pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Notes & Envies</label>
+                                        <textarea
+                                            rows={4}
+                                            value={editData.description}
+                                            onChange={e => setEditData({ ...editData, description: e.target.value })}
+                                            className="w-full bg-dark-800 border border-white/5 rounded-2xl p-6 text-white focus:outline-none focus:border-brand-500 transition-all text-sm no-scrollbar resize-none"
+                                            placeholder="Précisez votre envie pour ce moment..."
                                         />
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase ml-1">Notes</label>
-                                    <textarea
-                                        rows={3}
-                                        value={editData.description}
-                                        onChange={e => setEditData({ ...editData, description: e.target.value })}
-                                        className="w-full bg-dark-900 border border-white/5 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-brand-500 transition-all text-sm"
-                                        placeholder="Précisez votre envie..."
-                                    />
-                                </div>
                             </div>
 
-                            <div className="flex gap-4 mt-8">
-                                <button
-                                    onClick={() => setEditingCard(null)}
-                                    className="flex-1 py-4 bg-dark-700 hover:bg-dark-600 text-white font-bold rounded-2xl transition-all"
-                                >
-                                    Annuler
-                                </button>
-                                <button
-                                    onClick={handleUpdateCard}
-                                    className="flex-1 py-4 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-2xl transition-all shadow-lg shadow-brand-500/20"
-                                >
-                                    Enregistrer
-                                </button>
-                            </div>
+                            {hasChanges && (
+                                <div className="p-8 border-t border-white/5 bg-dark-800/80 backdrop-blur-md flex justify-end animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                    <button
+                                        onClick={handleUpdateCard}
+                                        className="h-10 px-4 rounded-xl border flex items-center gap-2 transition-all active:scale-95 shadow-lg text-[10px] font-black uppercase tracking-widest bg-orange-500 border-orange-600 text-white"
+                                    >
+                                        Enregistrer les modifications
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )
             }
-        </div >
+
+            {/* Travelers Management Off-Canvas */}
+            {showTravelersSheet && (
+                <div className="fixed inset-0 z-[100] flex justify-end">
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setShowTravelersSheet(false)}></div>
+                    <div className="relative w-full max-w-md bg-dark-900 border-l border-white/10 h-full shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col">
+
+                        {/* Header */}
+                        <div className="p-8 border-b border-white/5 flex items-center justify-between bg-dark-900/95 backdrop-blur-md z-10">
+                            <h2 className="text-2xl font-black italic">Gérer les voyageurs</h2>
+                            <button
+                                onClick={() => setShowTravelersSheet(false)}
+                                className="w-10 h-10 rounded-full bg-dark-800 border border-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-dark-700 transition-all"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-8 space-y-8">
+
+                            {/* Current Members */}
+                            <section className="space-y-4">
+                                <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 flex items-center gap-2">
+                                    <Users size={12} />
+                                    Membres du voyage
+                                </h3>
+                                <div className="space-y-3">
+                                    {members.map(member => (
+                                        <div key={member.id} className="flex items-center gap-4 bg-dark-800/50 p-3 rounded-2xl border border-white/5">
+                                            <div className="w-10 h-10 rounded-full bg-dark-700 overflow-hidden flex items-center justify-center shrink-0 border border-white/10">
+                                                {member.user?.user_metadata?.avatar_url ? (
+                                                    <img src={member.user.user_metadata.avatar_url} alt="" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <span className="text-sm font-bold text-gray-400">{member.user?.email?.[0].toUpperCase()}</span>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-sm font-bold truncate">{member.user?.user_metadata?.full_name || member.user?.email}</div>
+                                                <div className="text-xs text-gray-500 capitalize">{member.role === 'owner' ? 'Créateur' : (member.role === 'editor' ? 'Peut modifier' : 'Peut voir')}</div>
+                                            </div>
+                                            {member.role === 'owner' && <ShieldCheck size={16} className="text-brand-500" />}
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+
+                            {/* Pending Invitations */}
+                            {invitations.length > 0 && (
+                                <section className="space-y-4">
+                                    <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 flex items-center gap-2">
+                                        <Clock size={12} />
+                                        Invitations en attente
+                                    </h3>
+                                    <div className="space-y-2">
+                                        {invitations.map(invi => (
+                                            <div key={invi.id} className="flex items-center justify-between bg-dark-800/30 p-3 rounded-xl border border-white/5 border-dashed">
+                                                <div className="text-xs text-gray-400 truncate max-w-[200px]">{invi.email || 'Lien partagé'}</div>
+                                                <span className="text-[10px] px-2 py-0.5 bg-white/5 rounded text-gray-500 capitalize">{invi.role}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
+
+                            {/* Invite Actions */}
+                            <section className="space-y-6 pt-6 border-t border-white/5">
+                                <h3 className="text-[10px] font-black uppercase tracking-widest text-brand-500">Inviter quelqu'un</h3>
+
+                                <div className="space-y-3">
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="email"
+                                            placeholder="Email du voyageur..."
+                                            value={inviteEmail}
+                                            onChange={e => setInviteEmail(e.target.value)}
+                                            className="flex-1 bg-dark-800 border border-white/5 rounded-2xl h-[50px] px-4 text-sm text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
+                                        />
+                                        <select
+                                            value={inviteRole}
+                                            onChange={e => setInviteRole(e.target.value as any)}
+                                            className="bg-dark-800 border border-white/5 rounded-2xl h-[50px] px-3 text-sm text-gray-400 focus:outline-none focus:border-brand-500 font-bold"
+                                        >
+                                            <option value="viewer">Voir</option>
+                                            <option value="editor">Modifier</option>
+                                        </select>
+                                    </div>
+                                    <button
+                                        onClick={() => handleInviteEmail(inviteEmail, inviteRole)}
+                                        disabled={!inviteEmail}
+                                        className="w-full h-[50px] rounded-2xl bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-600 text-white font-black uppercase tracking-widest text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                                    >
+                                        <Send size={16} /> Envoyer l'invitation
+                                    </button>
+                                </div>
+
+                                <div className="relative">
+                                    <div className="absolute inset-0 flex items-center">
+                                        <div className="w-full border-t border-white/5"></div>
+                                    </div>
+                                    <div className="relative flex justify-center text-xs uppercase">
+                                        <span className="bg-dark-900 px-2 text-gray-600 font-bold">Ou</span>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={handleGenerateLink}
+                                    className="w-full h-[50px] rounded-2xl bg-dark-800 border border-white/10 hover:border-brand-500/50 hover:bg-dark-700 text-white font-black uppercase tracking-widest text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 group"
+                                >
+                                    <LinkIcon size={16} className="group-hover:text-brand-500 transition-colors" /> Copier le lien d'invitation
+                                </button>
+                            </section>
+
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Confirmation Modal */}
+            <GenericConfirmationModal
+                isOpen={confirmConfig.isOpen}
+                title={confirmConfig.title}
+                message={confirmConfig.message}
+                variant={confirmConfig.variant}
+                onConfirm={confirmConfig.onConfirm}
+                onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+            />
+        </div>
     );
 };
 
