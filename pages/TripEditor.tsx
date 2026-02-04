@@ -368,8 +368,10 @@ const TripEditor: React.FC = () => {
     const [members, setMembers] = useState<TripMember[]>([]);
     const [invitations, setInvitations] = useState<TripInvitation[]>([]);
     const [showTravelersSheet, setShowTravelersSheet] = useState(false);
-    const [newChecklistItem, setNewChecklistItem] = useState('');
-
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('viewer');
+    const [inviteStatus, setInviteStatus] = useState<'idle' | 'success' | 'error'>('idle');
+    const [inviteStatusMessage, setInviteStatusMessage] = useState('');
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [confirmConfig, setConfirmConfig] = useState<{
         isOpen: boolean;
@@ -385,6 +387,8 @@ const TripEditor: React.FC = () => {
         variant: 'danger'
     });
     const [tripEmoji, setTripEmoji] = useState('🚩');
+    const [newChecklistItem, setNewChecklistItem] = useState('');
+
 
     const activeDayIndex = parseInt(dayIndex || '1');
 
@@ -686,14 +690,15 @@ const TripEditor: React.FC = () => {
     const fetchMembers = useCallback(async () => {
         if (!tripId) return;
 
-        // Fetch members with user details
+        // Fetch members with user details via profiles table
         const { data: membersData, error: membersError } = await supabase
             .from('trip_members')
             .select(`
                 *,
-                user:user_id (
-                    email,
-                    user_metadata
+                user:profiles!user_id (
+                    username,
+                    emoji,
+                    location
                 )
             `)
             .eq('trip_id', tripId);
@@ -852,9 +857,7 @@ const TripEditor: React.FC = () => {
     const handleInviteEmail = async (email: string, role: 'editor' | 'viewer') => {
         if (!tripId || !email || !user) return;
 
-        // Check if already member
-        // (Simplified check)
-
+        setInviteStatus('idle');
         const token = crypto.randomUUID();
         const { error } = await supabase.from('trip_invitations').insert({
             trip_id: tripId,
@@ -868,20 +871,20 @@ const TripEditor: React.FC = () => {
         if (!error) {
             fetchMembers();
             setInviteEmail('');
-            alert('Invitation envoyée !');
+            setInviteStatus('success');
+            setInviteStatusMessage(`Invitation envoyée à ${email}`);
+            setTimeout(() => setInviteStatus('idle'), 3000);
         } else {
-            alert('Erreur lors de l\'envoi de l\'invitation.');
+            setInviteStatus('error');
+            setInviteStatusMessage('Erreur lors de l\'envoi de l\'invitation.');
             console.error(error);
         }
     };
 
     const handleGenerateLink = async () => {
         if (!tripId || !user) return;
+        setInviteStatus('idle');
         const token = crypto.randomUUID();
-        // Create a generic invitation (email is null or handled as generic)
-        // For this implementations, let's say we create a generic link that anyone can claim?
-        // Or we just generate a token that redirects to signin.
-        // The schema allows null email.
 
         const { error } = await supabase.from('trip_invitations').insert({
             trip_id: tripId,
@@ -894,12 +897,14 @@ const TripEditor: React.FC = () => {
         if (!error) {
             const link = `${window.location.origin}/join/${token}`;
             navigator.clipboard.writeText(link);
-            alert('Lien d\'invitation copié dans le presse-papier !');
+            setInviteStatus('success');
+            setInviteStatusMessage('Lien copié dans le presse-papier !');
+            setTimeout(() => setInviteStatus('idle'), 3000);
+        } else {
+            setInviteStatus('error');
+            setInviteStatusMessage('Erreur lors de la génération du lien.');
         }
     };
-
-    const [inviteEmail, setInviteEmail] = useState('');
-    const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('viewer');
 
     if (isInitialLoading) {
         return (
@@ -1693,7 +1698,7 @@ const TripEditor: React.FC = () => {
                                                             const eh = Math.floor(totalMinutes / 60) % 24;
                                                             const em = totalMinutes % 60;
                                                             const end = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
-                                                            setEditData({ ...editData, duration: d.val as number, end_time: end });
+                                                            setEditData({ ...editData, duration: d.val, end_time: end });
                                                         }}
                                                         className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${editData.duration === d.val ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/20 px-6' : 'bg-dark-900 text-gray-400 hover:text-white border border-white/5'}`}
                                                     >
@@ -1842,29 +1847,44 @@ const TripEditor: React.FC = () => {
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-8 space-y-8">
+                        <div className="flex-1 overflow-y-auto space-y-8">
+
+                            {/* Status Feedback */}
+                            {inviteStatus !== 'idle' && (
+                                <div className="px-8 animate-in slide-in-from-top duration-300">
+                                    <div className={`p-4 rounded-2xl flex items-center gap-3 border ${inviteStatus === 'success'
+                                        ? 'bg-green-500/10 border-green-500/20 text-green-200'
+                                        : 'bg-red-500/10 border-red-500/20 text-red-200'
+                                        }`}>
+                                        {inviteStatus === 'success' ? <CheckCircle2 size={18} className="text-green-500" /> : <AlertTriangle size={18} className="text-red-500" />}
+                                        <span className="text-sm font-bold">{inviteStatusMessage}</span>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Current Members */}
-                            <section className="space-y-4">
+                            <section className="space-y-4 px-8">
                                 <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 flex items-center gap-2">
                                     <Users size={12} />
                                     Membres du voyage
                                 </h3>
                                 <div className="space-y-3">
                                     {members.map(member => (
-                                        <div key={member.id} className="flex items-center gap-4 bg-dark-800/50 p-3 rounded-2xl border border-white/5">
-                                            <div className="w-10 h-10 rounded-full bg-dark-700 overflow-hidden flex items-center justify-center shrink-0 border border-white/10">
-                                                {member.user?.user_metadata?.avatar_url ? (
-                                                    <img src={member.user.user_metadata.avatar_url} alt="" className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <span className="text-sm font-bold text-gray-400">{member.user?.email?.[0].toUpperCase()}</span>
-                                                )}
+                                        <div key={member.id} className="flex items-center gap-4 bg-dark-800/50 p-3 rounded-2xl border border-white/5 group">
+                                            <div className="w-10 h-10 rounded-full bg-dark-700 overflow-hidden flex items-center justify-center shrink-0 border border-white/10 text-xl">
+                                                {member.user?.emoji || '👤'}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="text-sm font-bold truncate">{member.user?.user_metadata?.full_name || member.user?.email}</div>
-                                                <div className="text-xs text-gray-500 capitalize">{member.role === 'owner' ? 'Créateur' : (member.role === 'editor' ? 'Peut modifier' : 'Peut voir')}</div>
+                                                <div className="text-sm font-bold truncate">{member.user?.username || 'Utilisateur'}</div>
+                                                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                                                    {member.role === 'owner' ? 'Leader' : (member.role === 'editor' ? 'Éditeur' : 'Observateur')}
+                                                </div>
                                             </div>
-                                            {member.role === 'owner' && <ShieldCheck size={16} className="text-brand-500" />}
+                                            {member.role !== 'owner' && (
+                                                <button className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-500 transition-all">
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
