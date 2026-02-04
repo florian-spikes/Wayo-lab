@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowRight, Mail, Lock, AlertCircle } from 'lucide-react';
+import { ArrowRight, Mail, Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 
 const Auth: React.FC = () => {
