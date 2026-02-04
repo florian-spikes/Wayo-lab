@@ -1,68 +1,62 @@
 import React from 'react';
-import { PlusCircle, Wand2, Share2 } from 'lucide-react';
+import { Layout, MessageSquare, CheckCircle } from 'lucide-react';
+
+const steps = [
+  {
+    id: '01',
+    title: "Visualisez votre itinéraire",
+    description: "Chaque journée est construite comme une timeline simple, lisible et modifiable à volonté pour comprendre où vous allez et quand.",
+    icon: <Layout className="text-blue-400" />,
+    color: "from-blue-500/20 to-blue-500/0"
+  },
+  {
+    id: '02',
+    title: "Laissez-vous inspirer",
+    description: "Profitez d'une IA qui vous suggère des idées de visites et d'activités selon vos envies, tout en vous laissant le contrôle total.",
+    icon: <MessageSquare className="text-brand-400" />,
+    color: "from-brand-500/20 to-brand-500/0"
+  },
+  {
+    id: '03',
+    title: "Partez l'esprit tranquille",
+    description: "Validez vos journées pour figer votre itinéraire. Accédez à vos checklists intelligentes et votre carnet de bord récapitulatif.",
+    icon: <CheckCircle className="text-green-400" />,
+    color: "from-green-500/20 to-green-500/0"
+  }
+];
 
 const Workflow: React.FC = () => {
-  const steps = [
-    {
-      id: "01",
-      title: "Draft your vision",
-      description: "Dump all your ideas onto the canvas. Don't worry about the order yet. Just drag, drop, and collect places you love.",
-      icon: <PlusCircle className="text-brand-500" size={24} />,
-      color: "from-brand-500/20 to-transparent"
-    },
-    {
-      id: "02",
-      title: "Refine with AI",
-      description: "Ask Wayo to optimize the route, suggest lunch spots between museums, or estimate travel times between cities.",
-      icon: <Wand2 className="text-purple-500" size={24} />,
-      color: "from-purple-500/20 to-transparent"
-    },
-    {
-      id: "03",
-      title: "Sync & Go",
-      description: "Finalize the timeline and sync it to your phone. Share a read-only visual link with friends or family.",
-      icon: <Share2 className="text-blue-500" size={24} />,
-      color: "from-blue-500/20 to-transparent"
-    }
-  ];
-
   return (
-    <section id="workflow" className="py-24 bg-dark-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-          
-          {/* Left Column: Heading */}
-          <div>
-            <div className="text-brand-500 font-mono text-sm tracking-widest mb-4">HOW IT WORKS</div>
+    <section id="workflow" className="py-24 px-4 relative">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col lg:flex-row items-center gap-16">
+          <div className="flex-1">
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Simple workflow built <br /> for clarity.
+              Une organisation bâtie <br /> pour la clarté.
             </h2>
-            <p className="text-gray-400 text-lg mb-8">
-              From the first spark of inspiration to the final airport transfer, everything flows in a structure that keeps your excitement moving without friction.
+            <p className="text-gray-300 text-lg mb-8">
+              De l'étincelle de l'idée au départ final, tout est structuré pour maintenir votre enthousiasme sans la friction de l'organisation.
             </p>
           </div>
 
-          {/* Right Column: Steps */}
-          <div className="space-y-6">
+          <div className="space-y-6 flex-1">
             {steps.map((step) => (
-              <div key={step.id} className="relative group">
+              <div key={step.id} className="relative group cursor-pointer">
                 <div className={`absolute inset-0 bg-gradient-to-r ${step.color} opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl`} />
                 <div className="relative p-6 rounded-2xl border border-white/5 bg-dark-900/50 hover:bg-dark-900/80 transition-colors flex gap-6 items-start">
                   <div className="flex-shrink-0 mt-1">
-                    <span className="block text-2xl font-bold text-white/20 mb-2">{step.id}</span>
-                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
+                    <div className="w-12 h-12 rounded-xl bg-dark-900 border border-white/10 flex items-center justify-center">
                       {step.icon}
                     </div>
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-white mb-2">{step.title}</h3>
-                    <p className="text-gray-400 leading-relaxed">{step.description}</p>
+                    <p className="text-gray-300 leading-relaxed">{step.description}</p>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-
         </div>
       </div>
     </section>

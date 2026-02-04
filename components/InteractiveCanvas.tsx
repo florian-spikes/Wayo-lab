@@ -10,10 +10,10 @@ const Card: React.FC<CanvasCardProps> = ({ title, time, type, x, y, delay = 0 })
   };
 
   return (
-    <div 
+    <div
       className="absolute bg-dark-800 border border-white/10 rounded-xl p-3 shadow-2xl w-48 animate-float"
-      style={{ 
-        left: `${x}%`, 
+      style={{
+        left: `${x}%`,
         top: `${y}%`,
         animationDelay: `${delay}s`
       }}
@@ -28,7 +28,7 @@ const Card: React.FC<CanvasCardProps> = ({ title, time, type, x, y, delay = 0 })
         </div>
         <div>
           <h4 className="text-sm font-semibold text-white leading-tight">{title}</h4>
-          <p className="text-[10px] text-gray-400">Tokyo, Japan</p>
+          <p className="text-[10px] text-gray-400">Tokyo, Japon</p>
         </div>
       </div>
     </div>
@@ -39,8 +39,8 @@ const InteractiveCanvas: React.FC = () => {
   return (
     <div className="relative w-full aspect-square md:aspect-[4/3] bg-dark-800/50 rounded-3xl border border-white/5 backdrop-blur-sm overflow-hidden shadow-2xl">
       {/* Grid Pattern Background */}
-      <div className="absolute inset-0 opacity-10" 
-           style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
+      <div className="absolute inset-0 opacity-10"
+        style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
       </div>
 
       {/* Connection Lines (SVG) */}
@@ -53,51 +53,51 @@ const InteractiveCanvas: React.FC = () => {
       <div className="absolute top-4 left-4 flex flex-col gap-2 z-20">
         {[1, 2, 3].map((_, i) => (
           <div key={i} className="w-10 h-10 rounded-lg bg-dark-700 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-dark-600 cursor-pointer transition-colors">
-            {i === 0 ? <MapPin size={18}/> : i === 1 ? <Coffee size={18}/> : <Camera size={18}/>}
+            {i === 0 ? <MapPin size={18} /> : i === 1 ? <Coffee size={18} /> : <Camera size={18} />}
           </div>
         ))}
       </div>
 
       {/* Cards */}
       <div className="relative w-full h-full z-10 scale-75 md:scale-100 origin-center">
-        <Card 
-          title="Morning Coffee" 
-          time="09:00 AM" 
-          type="food" 
-          x={10} 
-          y={10} 
+        <Card
+          title="Café du matin"
+          time="09h00"
+          type="food"
+          x={10}
+          y={10}
           delay={0}
         />
-        <Card 
-          title="Senso-ji Temple" 
-          time="10:30 AM" 
-          type="activity" 
-          x={45} 
-          y={35} 
+        <Card
+          title="Temple Senso-ji"
+          time="10h30"
+          type="activity"
+          x={45}
+          y={35}
           delay={1.5}
         />
-        <Card 
-          title="Shinjuku Station" 
-          time="02:00 PM" 
-          type="transport" 
-          x={15} 
-          y={65} 
+        <Card
+          title="Gare de Shinjuku"
+          time="14h00"
+          type="transport"
+          x={15}
+          y={65}
           delay={3}
         />
-        
+
         {/* Suggestion Bubble (AI) */}
         <div className="absolute right-8 top-1/2 -translate-y-1/2 bg-gradient-to-br from-brand-600 to-brand-500 p-4 rounded-xl shadow-lg w-56 animate-pulse-slow">
-            <div className="flex items-center gap-2 mb-2 text-white border-b border-white/20 pb-2">
-                <Sparkles size={14} />
-                <span className="text-xs font-bold uppercase tracking-wide">Wayo Copilot</span>
-            </div>
-            <p className="text-xs text-white/90 leading-relaxed">
-                Since you're visiting Senso-ji, I suggest grabbing lunch at <strong>Asakusa Imahan</strong> nearby. It fits your 1.5hr gap perfectly.
-            </p>
-            <div className="mt-3 flex gap-2">
-                <button className="flex-1 bg-white text-brand-600 text-[10px] font-bold py-1.5 rounded shadow hover:bg-gray-100">Add to Map</button>
-                <button className="px-2 text-white/70 hover:text-white"><div className="w-4 h-4 border border-white/50 rounded-full flex items-center justify-center text-[8px]">✕</div></button>
-            </div>
+          <div className="flex items-center gap-2 mb-2 text-white border-b border-white/20 pb-2">
+            <Sparkles size={14} />
+            <span className="text-xs font-bold uppercase tracking-wide">Utiliser Tori IA</span>
+          </div>
+          <p className="text-xs text-white/90 leading-relaxed">
+            Puisque vous visitez Senso-ji, je vous suggère de déjeuner à <strong>Asakusa Imahan</strong>. Cela s'insère parfaitement dans votre créneau de 1h30.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button className="flex-1 bg-white text-brand-600 text-[10px] font-bold py-1.5 rounded shadow hover:bg-gray-100">Ajouter</button>
+            <button className="px-2 text-white/70 hover:text-white"><div className="w-4 h-4 border border-white/50 rounded-full flex items-center justify-center text-[8px]">✕</div></button>
+          </div>
         </div>
       </div>
     </div>
