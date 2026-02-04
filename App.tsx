@@ -9,6 +9,9 @@ import ProfilePage from './pages/Profile';
 import NewTrip from './pages/NewTrip';
 import TripEditor from './pages/TripEditor';
 import JoinTrip from './pages/JoinTrip';
+import ResetPassword from './pages/ResetPassword';
+import NotFound from './pages/NotFound';
+import { useLocation } from 'react-router-dom';
 
 const LoadingScreen = () => (
   <div className="min-h-screen bg-dark-900 flex items-center justify-center">
@@ -19,18 +22,25 @@ const LoadingScreen = () => (
 // Route pour les utilisateurs connectés (indépendamment du profil)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
+
   if (loading) return <LoadingScreen />;
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) {
+    return <Navigate to="/auth" state={{ returnUrl: location.pathname }} replace />;
+  }
   return <>{children}</>;
 };
 
 // Route pour le Dashboard (nécessite session + profil complet)
 const DashboardRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, profile, loading } = useAuth();
+  const location = useLocation();
 
   // On attend seulement la session au niveau critique
   if (loading) return <LoadingScreen />;
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) {
+    return <Navigate to="/auth" state={{ returnUrl: location.pathname }} replace />;
+  }
 
   // Ici, on attend le profil de manière spécifique pour le Dashboard
   if (profile === undefined) return <LoadingScreen />;
@@ -57,6 +67,7 @@ const App: React.FC = () => {
       {/* Si déjà connecté, on n'affiche pas le login */}
       <Route path="/auth" element={!user ? <Auth /> : <Navigate to="/dashboard" replace />} />
       <Route path="/join/:token" element={<JoinTrip />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       <Route
         path="/profile-setup"
@@ -103,7 +114,7 @@ const App: React.FC = () => {
         }
       />
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };
