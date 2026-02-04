@@ -160,6 +160,8 @@ interface TripMember {
             full_name?: string;
             avatar_url?: string;
         };
+        username?: string; // [NEW] Added for display
+        emoji?: string;    // [NEW] Added for display
     };
 }
 
@@ -1060,35 +1062,30 @@ const TripEditor: React.FC = () => {
                         <div className="flex flex-col items-center md:items-end gap-3 mt-4 md:mt-0">
                             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-600">Explorateurs</span>
                             <div className="flex -space-x-3">
-                                {members.slice(0, 3).map((member, i) => (
+                                {members.map((member) => (
                                     <div
                                         key={member.id}
-                                        onClick={() => setShowTravelersSheet(true)}
-                                        className="w-12 h-12 rounded-full bg-dark-800 border-2 border-dark-900 flex items-center justify-center text-sm font-bold text-gray-300 shadow-lg hover:-translate-y-1 transition-transform cursor-pointer group relative overflow-hidden"
+                                        className="w-12 h-12 rounded-full bg-dark-800 border-2 border-dark-900 flex items-center justify-center text-2xl shadow-lg hover:-translate-y-1 transition-transform cursor-pointer group relative overflow-visible z-10 hover:z-20"
                                     >
-                                        {member.user?.user_metadata?.avatar_url ? (
-                                            <img src={member.user.user_metadata.avatar_url} alt={member.user.email} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="bg-brand-500/10 w-full h-full flex items-center justify-center text-brand-500">
-                                                {member.user?.email?.[0].toUpperCase() || '?'}
-                                            </div>
-                                        )}
-                                        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-white text-dark-900 text-[10px] font-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20">
-                                            {member.user?.user_metadata?.full_name || member.user?.email?.split('@')[0] || 'Inconnu'}
+                                        <div className="w-full h-full flex items-center justify-center bg-dark-800 rounded-full">
+                                            {member.user?.emoji || '👤'}
+                                        </div>
+
+                                        {/* Tooltip on Hover */}
+                                        <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 bg-white text-dark-900 px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-xl">
+                                            <span className="text-[10px] font-black uppercase tracking-wider">
+                                                {member.user?.username || 'Voyageur'}
+                                            </span>
+                                            {/* Little triangle pointer */}
+                                            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rotate-45"></div>
                                         </div>
                                     </div>
                                 ))}
-                                {members.length > 3 && (
-                                    <div
-                                        onClick={() => setShowTravelersSheet(true)}
-                                        className="w-12 h-12 rounded-full bg-dark-800 border-2 border-dark-900 flex items-center justify-center text-xs font-bold text-gray-400 cursor-pointer hover:text-white"
-                                    >
-                                        +{members.length - 3}
-                                    </div>
-                                )}
+
                                 <button
                                     onClick={() => setShowTravelersSheet(true)}
-                                    className="w-12 h-12 rounded-full bg-brand-500/10 border-2 border-dashed border-brand-500/30 flex items-center justify-center text-brand-500 hover:bg-brand-500 hover:text-white transition-all z-10"
+                                    className="w-12 h-12 rounded-full bg-brand-500/10 border-2 border-dashed border-brand-500/30 flex items-center justify-center text-brand-500 hover:bg-brand-500 hover:text-white transition-all z-0 hover:z-10"
+                                    title="Gérer les voyageurs"
                                 >
                                     <Plus size={20} />
                                 </button>
