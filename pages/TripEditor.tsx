@@ -369,8 +369,7 @@ const TripEditor: React.FC = () => {
     const [members, setMembers] = useState<TripMember[]>([]);
     const [invitations, setInvitations] = useState<TripInvitation[]>([]);
     const [showTravelersSheet, setShowTravelersSheet] = useState(false);
-    const [inviteEmail, setInviteEmail] = useState('');
-    // Role selector removed: default is always 'viewer' initially
+    // Email invitations removed - link sharing only
     const [inviteStatus, setInviteStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [inviteStatusMessage, setInviteStatusMessage] = useState('');
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -691,30 +690,37 @@ const TripEditor: React.FC = () => {
     const fetchMembers = useCallback(async () => {
         if (!tripId) return;
 
-        // Fetch members with user details via profiles table
+        // Step 1: Fetch members without trying to join profiles
         const { data: membersData, error: membersError } = await supabase
             .from('trip_members')
-            .select(`
-                *,
-                user:profiles!user_id (
-                    username,
-                    emoji,
-                    location
-                )
-            `)
+            .select('*')
             .eq('trip_id', tripId);
 
         if (!membersError && membersData) {
+            // Step 2: Fetch profiles separately
+            const userIds = membersData.map(m => m.user_id);
+            const { data: profilesData } = await supabase
+                .from('profiles')
+                .select('id, username, emoji, location')
+                .in('id', userIds);
+
+            // Step 3: Merge the data
+            const membersWithProfiles = membersData.map(member => ({
+                ...member,
+                user: profilesData?.find(p => p.id === member.user_id) || null
+            }));
+
             // @ts-ignore - Supabase types mapping for joined tables can be tricky
-            setMembers(membersData);
+            setMembers(membersWithProfiles);
         }
 
-        // Fetch pending invitations
+        // Fetch pending invitations (only non-expired ones)
         const { data: invitesData, error: invitesError } = await supabase
             .from('trip_invitations')
             .select('*')
             .eq('trip_id', tripId)
-            .eq('status', 'pending');
+            .eq('status', 'pending')
+            .gte('expires_at', new Date().toISOString()); // Only valid invitations
 
         if (!invitesError && invitesData) {
             setInvitations(invitesData as TripInvitation[]);
@@ -855,60 +861,43 @@ const TripEditor: React.FC = () => {
         }
     };
 
-    const handleInviteEmail = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!tripId || !inviteEmail || !user) return;
-
-        setInviteStatus('idle');
-        const token = crypto.randomUUID();
-        const { error } = await supabase.from('trip_invitations').insert({
-            trip_id: tripId,
-            email: inviteEmail,
-            role: 'viewer', // Always viewer by default
-            token,
-            created_by: user.id,
-            status: 'pending'
-        });
-
-        if (!error) {
-            fetchMembers();
-            setInviteEmail('');
-            setInviteStatus('success');
-            setInviteStatusMessage(`Invitation envoyée à ${inviteEmail}`);
-            setTimeout(() => setInviteStatus('idle'), 3000);
-        } else {
-            setInviteStatus('error');
-            setInviteStatusMessage('Erreur lors de l\'envoi de l\'invitation.');
-            console.error(error);
-        }
-    };
 
     const handleGenerateLink = async () => {
         if (!tripId || !user) return;
         setInviteStatus('idle');
 
-        // 1. Check if a generic link already exists
+        // 1. Check if a valid generic link already exists
         // Fetch all pending invitations and filter client-side to avoid .is() syntax issues
         const { data: pendingInvites } = await supabase
             .from('trip_invitations')
-            .select('id, token, email')
+            .select('id, token, email, expires_at')
             .eq('trip_id', tripId)
             .eq('status', 'pending');
 
-        // Find the generic link (one without an email)
-        const existingLink = pendingInvites?.find(inv => inv.email === null);
+        // Find a valid generic link (one without an email and not expired)
+        const now = new Date();
+        const existingLink = pendingInvites?.find(inv => {
+            if (inv.email !== null) return false; // Must be generic
+            const expiresAt = new Date(inv.expires_at);
+            return expiresAt > now; // Must not be expired
+        });
         let token = existingLink?.token;
+        let expiresAt: Date;
 
-        // 2. If not, create one
+        // 2. If not, create one with 24h expiration
         if (!token) {
             token = crypto.randomUUID();
+            expiresAt = new Date();
+            expiresAt.setHours(expiresAt.getHours() + 24); // 24h from now
+
             const { error } = await supabase.from('trip_invitations').insert({
                 trip_id: tripId,
                 token,
                 role: 'viewer',
                 created_by: user.id,
                 status: 'pending',
-                email: null // Explicitly null for generic
+                email: null, // Explicitly null for generic
+                expires_at: expiresAt.toISOString()
             });
 
             if (error) {
@@ -916,14 +905,26 @@ const TripEditor: React.FC = () => {
                 setInviteStatusMessage('Erreur lors de la génération.');
                 return;
             }
+        } else {
+            // Use existing link's expiration
+            expiresAt = new Date(existingLink.expires_at);
         }
 
         // 3. Copy to clipboard
         const link = `${window.location.origin}/join/${token}`;
         navigator.clipboard.writeText(link);
+
+        // 4. Show success message with expiration warning
+        const expiryTime = expiresAt.toLocaleString('fr-FR', {
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
         setInviteStatus('success');
-        setInviteStatusMessage('Lien copié dans le presse-papier !');
-        setTimeout(() => setInviteStatus('idle'), 3000);
+        setInviteStatusMessage(`Lien copié ! Expire le ${expiryTime}`);
+        setTimeout(() => setInviteStatus('idle'), 5000); // Show for 5 seconds
 
         // Refresh to show the link in the list (if we want to show it)
         fetchMembers();
@@ -1957,46 +1958,19 @@ const TripEditor: React.FC = () => {
 
                             {/* Invite Actions */}
                             <section className="space-y-6 pt-6 border-t border-white/5">
-                                <h3 className="text-[10px] font-black uppercase tracking-widest text-brand-500">Inviter quelqu'un</h3>
+                                <h3 className="text-[10px] font-black uppercase tracking-widest text-brand-500">Inviter des voyageurs</h3>
 
-                                <form onSubmit={handleInviteEmail} className="space-y-3">
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="email"
-                                            required
-                                            placeholder="Email du voyageur..."
-                                            value={inviteEmail}
-                                            onChange={e => setInviteEmail(e.target.value)}
-                                            className="flex-1 bg-dark-800 border border-white/5 rounded-2xl h-[50px] px-4 text-sm text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
-                                        />
-                                    </div>
-                                    <p className="text-[10px] text-gray-500 ml-1">
-                                        * Les invités rejoignent en tant qu'observateurs.
-                                    </p>
+                                <div className="space-y-3">
                                     <button
-                                        type="submit"
-                                        disabled={!inviteEmail}
-                                        className="w-full h-[50px] rounded-2xl bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-600 text-white font-black uppercase tracking-widest text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                                        onClick={handleGenerateLink}
+                                        className="w-full h-[50px] rounded-2xl bg-brand-500 hover:bg-brand-600 text-white font-black uppercase tracking-widest text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 group"
                                     >
-                                        <Send size={16} /> Envoyer l'invitation
+                                        <LinkIcon size={16} /> Copier le lien d'invitation
                                     </button>
-                                </form>
-
-                                <div className="relative">
-                                    <div className="absolute inset-0 flex items-center">
-                                        <div className="w-full border-t border-white/5"></div>
-                                    </div>
-                                    <div className="relative flex justify-center text-xs uppercase">
-                                        <span className="bg-dark-900 px-2 text-gray-600 font-bold">Ou</span>
-                                    </div>
+                                    <p className="text-[10px] text-gray-500 text-center">
+                                        ⚠️ Le lien expire 24h après sa création
+                                    </p>
                                 </div>
-
-                                <button
-                                    onClick={handleGenerateLink}
-                                    className="w-full h-[50px] rounded-2xl bg-dark-800 border border-white/10 hover:border-brand-500/50 hover:bg-dark-700 text-white font-black uppercase tracking-widest text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 group"
-                                >
-                                    <LinkIcon size={16} className="group-hover:text-brand-500 transition-colors" /> Copier le lien d'invitation
-                                </button>
                             </section>
 
                         </div>

@@ -47,8 +47,20 @@ const JoinTrip: React.FC = () => {
                 throw new Error('Invitation introuvable ou expirée.');
             }
 
+            // Check if trip exists
+            if (!inviteData.trip) {
+                throw new Error('Ce voyage n\'existe plus.');
+            }
+
+            // Check invitation status
             if (inviteData.status !== 'pending') {
                 throw new Error('Cette invitation a déjà été utilisée ou a expiré.');
+            }
+
+            // Check expiration (24h)
+            const expiresAt = new Date(inviteData.expires_at);
+            if (expiresAt < new Date()) {
+                throw new Error('Ce lien d\'invitation a expiré. Demandez un nouveau lien à l\'organisateur.');
             }
 
             // 2. Fetch the owner's profile separately
@@ -68,7 +80,7 @@ const JoinTrip: React.FC = () => {
             setTrip(tripWithOwner);
         } catch (err: any) {
             console.error(err);
-            setError('Invitation introuvable ou expirée.'); // Generic safe message for user
+            setError(err.message || 'Invitation introuvable ou expirée.');
         } finally {
             setLoading(false);
         }
