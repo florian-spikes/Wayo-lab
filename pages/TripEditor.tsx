@@ -1226,6 +1226,7 @@ const TripEditor: React.FC = () => {
         : `Jour ${activeDayIndex}`;
 
     const allDaysLocked = days.length > 0 && days.every(d => d.status === 'locked');
+    const isPreparationValidated = checklistItems.length > 0 && checklistItems.every(i => i.is_completed);
 
     const hasChanges = !!editingCard && (
         editData.title !== editingCard.title ||
@@ -1240,173 +1241,105 @@ const TripEditor: React.FC = () => {
         <div className="min-h-screen bg-dark-900 text-white pb-40 overflow-x-hidden">
             <Navbar />
 
-            {/* Premium Immersive Header */}
-            <header className="pt-24 pb-8 px-4 relative overflow-hidden">
-                <div className="absolute top-0 left-1/4 w-96 h-96 bg-brand-500/10 rounded-full blur-[120px] -z-10 animate-pulse"></div>
-                <div className="absolute top-20 right-1/4 w-64 h-64 bg-orange-500/5 rounded-full blur-[100px] -z-10"></div>
-
-                <div className="max-w-7xl mx-auto">
-                    {/* Back to Voyages Link */}
-                    <div className="mb-8 flex justify-center md:justify-start">
-                        <Link
-                            to="/dashboard"
-                            className="group/back flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 hover:text-brand-500 transition-all"
-                        >
-                            <div className="w-8 h-8 rounded-full bg-dark-800 border border-white/5 flex items-center justify-center group-hover/back:border-brand-500/30 group-hover/back:bg-brand-500/5 transition-all">
-                                <ChevronLeft size={16} />
+            {/* Minimalist Header */}
+            <header className="pt-24 pb-6 px-4 max-w-7xl mx-auto">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                    {/* Left: Title & Status */}
+                    <div className="flex-1">
+                        <Link to="/dashboard" className="inline-flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-white transition-colors mb-4 group">
+                            <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-brand-500 group-hover:text-white transition-all">
+                                <ChevronLeft size={14} />
                             </div>
-                            <span>Retour à mes voyages</span>
+                            Retour
                         </Link>
+                        <div className="flex items-center gap-4 mb-2">
+                            <h1 className="text-3xl font-black tracking-tight">{trip.title}</h1>
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${allDaysLocked ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-orange-500/10 text-orange-500 border-orange-500/20'}`}>
+                                {allDaysLocked ? 'Prêt' : 'En cours'}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs font-bold text-gray-500">
+                            <span className="flex items-center gap-1.5"><MapPin size={12} /> {trip.destination_country}</span>
+                            <span className="flex items-center gap-1.5"><Clock size={12} /> {trip.duration_days} jours</span>
+                        </div>
                     </div>
 
-                    <div className="flex flex-col md:flex-row items-center md:items-end gap-8 text-center md:text-left">
-                        {/* Trip Icon / Emoji - Clickable */}
-                        <div className="relative group">
-                            {isOwner && <div className="absolute inset-0 bg-brand-500/20 rounded-[40px] blur-2xl group-hover:blur-3xl transition-all duration-500"></div>}
+                    {/* Right: Travelers & Actions */}
+                    <div className="flex items-center gap-4">
+                        <div className="flex -space-x-2">
+                            {members.map((member) => (
+                                <div key={member.id} className="w-8 h-8 rounded-full bg-dark-800 border-2 border-dark-900 flex items-center justify-center text-sm shadow-sm" title={member.user?.username}>
+                                    {member.user?.emoji || '👤'}
+                                </div>
+                            ))}
+                            {isOwner && (
+                                <button onClick={() => setShowTravelersSheet(true)} className="w-8 h-8 rounded-full bg-white/5 border-2 border-dashed border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:border-white/30 transition-colors">
+                                    <Plus size={14} />
+                                </button>
+                            )}
+                        </div>
+                        {isOwner && (
                             <button
-                                onClick={() => isOwner && setShowEmojiPicker(true)}
-                                disabled={!isOwner}
-                                className={`relative w-32 h-32 bg-dark-800 border border-white/10 rounded-[40px] flex items-center justify-center text-[4rem] shadow-2xl transition-all duration-500 ${isOwner ? 'hover:scale-105 hover:border-brand-500/50 cursor-pointer active:scale-95' : 'cursor-default'}`}
+                                onClick={() => setShowEmojiPicker(true)}
+                                className="w-10 h-10 rounded-xl bg-dark-800 border border-white/10 flex items-center justify-center text-2xl hover:border-brand-500/50 transition-colors"
                             >
                                 {tripEmoji}
-                                {isOwner && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-[40px]">
-                                        <Smile size={32} className="text-white" />
-                                    </div>
-                                )}
                             </button>
-                        </div>
-
-                        {/* Trip Info */}
-                        <div className="flex-1 space-y-4">
-                            <div className="flex flex-wrap justify-center md:justify-start gap-2 mb-2">
-                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors ${allDaysLocked ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-orange-500/10 text-orange-500 border border-orange-500/20'}`}>
-                                    {allDaysLocked ? <ShieldCheck size={10} /> : <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></div>}
-                                    {allDaysLocked ? 'Prévu' : 'En préparation'}
-                                </span>
-                                <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-widest text-gray-400">
-                                    {trip.duration_days} Jours
-                                </span>
-                            </div>
-
-                            <h1 className="text-[2rem] font-black leading-tight tracking-tighter">
-                                {trip.title}
-                            </h1>
-
-                            <div className="flex flex-wrap justify-center md:justify-start items-center gap-y-3 gap-x-6 text-sm font-bold text-gray-400">
-                                <div className="flex items-center gap-2">
-                                    <MapPin size={16} className="text-brand-500" />
-                                    <span>{trip.destination_country}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Clock size={16} className="text-brand-500" />
-                                    <span>
-                                        {trip.start_date ? new Date(trip.start_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : 'Flexible'}
-                                        {trip.end_date ? ` - ${new Date(trip.end_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}` : ''}
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <TrendingUp size={16} className="text-brand-500" />
-                                    <span>{trip.preferences?.rhythm || 'Standard'}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Wallet size={16} className="text-brand-500" />
-                                    <span>{trip.preferences?.budget || '€€'}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Participants / Invited */}
-                        <div className="flex flex-col items-center md:items-end gap-3 mt-4 md:mt-0">
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-600">Explorateurs</span>
-                            <div className="flex -space-x-3">
-                                {members.map((member) => (
-                                    <div
-                                        key={member.id}
-                                        className="w-12 h-12 rounded-full bg-dark-800 border-2 border-dark-900 flex items-center justify-center text-2xl shadow-lg hover:-translate-y-1 transition-transform cursor-pointer group relative overflow-visible z-10 hover:z-20"
-                                    >
-                                        <div className="w-full h-full flex items-center justify-center bg-dark-800 rounded-full">
-                                            {member.user?.emoji || '👤'}
-                                        </div>
-
-                                        {/* Tooltip on Hover */}
-                                        <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 bg-white text-dark-900 px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-xl">
-                                            <span className="text-[10px] font-black uppercase tracking-wider">
-                                                {member.user?.username || 'Voyageur'}
-                                            </span>
-                                            {/* Little triangle pointer */}
-                                            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rotate-45"></div>
-                                        </div>
-                                    </div>
-                                ))}
-
-                                {isOwner && (
-                                    <button
-                                        onClick={() => setShowTravelersSheet(true)}
-                                        className="w-12 h-12 rounded-full bg-brand-500/10 border-2 border-dashed border-brand-500/30 flex items-center justify-center text-brand-500 hover:bg-brand-500 hover:text-white transition-all z-0 hover:z-10"
-                                        title="Gérer les voyageurs"
-                                    >
-                                        <Plus size={20} />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             </header>
 
-            {/* Navigation Tabs - Modern & Floating */}
-            <div className="sticky top-16 z-50 bg-dark-900/80 backdrop-blur-xl border-y border-white/5">
-                <div className="max-w-7xl mx-auto flex px-2 overflow-x-auto no-scrollbar">
+            {/* Smart Switch Tabs */}
+            <div className="sticky top-20 z-40 flex justify-center pb-8 px-4 pointer-events-none">
+                <div className="bg-dark-800/80 backdrop-blur-md p-1.5 rounded-full border border-white/5 inline-flex pointer-events-auto shadow-2xl shadow-black/50">
                     {[
-                        { id: 'itineraire', label: 'Itinéraire', icon: <MapIcon size={18} /> },
-                        { id: 'preparation', label: 'Préparation', icon: <ClipboardList size={18} /> },
-                        { id: 'carnet', label: 'Carnet', icon: <Compass size={18} /> }
+                        { id: 'itineraire', label: 'Itinéraire', icon: <MapIcon size={14} />, validated: allDaysLocked },
+                        { id: 'preparation', label: 'Préparation', icon: <ClipboardList size={14} />, validated: isPreparationValidated },
+                        { id: 'carnet', label: 'Carnet', icon: <Compass size={14} />, validated: false }
                     ].map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id as any)}
-                            className={`flex items-center gap-3 px-8 py-5 transition-all relative group shrink-0 ${activeTab === tab.id ? 'text-brand-500' : 'text-gray-500 hover:text-gray-300'}`}
+                            className={`relative flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${activeTab === tab.id ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/20' : 'text-gray-400 hover:text-white'}`}
                         >
                             {tab.icon}
-                            <span className="text-xs font-black uppercase tracking-widest">{tab.label}</span>
-                            {activeTab === tab.id && (
-                                <div className="absolute bottom-0 left-6 right-6 h-0.5 bg-brand-500 rounded-full shadow-[0_0_10px_rgba(249,115,22,0.8)]"></div>
+                            {tab.label}
+                            {tab.validated && (
+                                <div className="absolute -top-1 -right-1 bg-green-500 text-white w-4 h-4 rounded-full flex items-center justify-center border-2 border-dark-800">
+                                    <Check size={8} strokeWidth={4} />
+                                </div>
                             )}
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* Day Selector - Only for Itinerary - Floating style */}
+            {/* Day Selector (Itinerary Only) */}
             {activeTab === 'itineraire' && (
-                <div className="bg-dark-900/40 border-b border-white/5 py-4">
-                    <div className="max-w-7xl mx-auto px-4 flex gap-3 overflow-x-auto no-scrollbar py-1">
+                <div className="max-w-7xl mx-auto px-4 mb-8">
+                    <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-2">
                         {days.map((day) => (
                             <button
                                 key={day.id}
                                 onClick={() => navigate(`/trips/${tripId}/day/${day.day_index}`)}
-                                className={`shrink-0 flex flex-col items-center justify-center w-14 h-16 rounded-2xl border transition-all relative ${day.day_index === activeDayIndex ? 'bg-brand-500 border-brand-500 text-white shadow-lg shadow-brand-500/20 scale-105' : 'bg-dark-800/50 border-white/5 text-gray-400 hover:border-white/10'}`}
+                                className={`shrink-0 flex flex-col items-center justify-center w-12 h-14 rounded-xl border transition-all relative ${day.day_index === activeDayIndex ? 'bg-white text-dark-900 border-white shadow-lg' : 'bg-dark-800/50 border-white/5 text-gray-500 hover:bg-dark-800 hover:text-gray-300'}`}
                             >
-                                <span className="text-[10px] font-bold uppercase opacity-60">J{day.day_index}</span>
-                                <span className="text-lg font-black">{day.date ? new Date(day.date).getDate() : '-'}</span>
+                                <span className="text-[9px] font-black uppercase opacity-60">J{day.day_index}</span>
+                                <span className="text-base font-black">{day.date ? new Date(day.date).getDate() : '-'}</span>
                                 {day.status === 'locked' && (
-                                    <div className="absolute -top-1 -right-1 bg-green-500 text-white rounded-full p-0.5 shadow-lg border-2 border-dark-900">
-                                        <Check size={8} strokeWidth={4} />
+                                    <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center border-2 border-dark-900 ${day.day_index === activeDayIndex ? 'bg-dark-900 text-white' : 'bg-green-500 text-white'}`}>
+                                        <Check size={6} strokeWidth={4} />
                                     </div>
                                 )}
                             </button>
                         ))}
-
-                        {/* Add Day Button */}
                         {canEditGlobal && (
                             <button
                                 onClick={handleAddDay}
-                                className="shrink-0 flex flex-col items-center justify-center w-14 h-16 rounded-2xl border-2 border-dashed border-white/10 text-gray-500 hover:border-brand-500/50 hover:text-brand-500 transition-all hover:bg-brand-500/5 group"
-                                title="Ajouter une journée"
+                                className="shrink-0 flex flex-col items-center justify-center w-12 h-14 rounded-xl border-2 border-dashed border-white/10 text-gray-600 hover:border-brand-500/50 hover:text-brand-500 transition-all hover:bg-brand-500/5"
                             >
-                                <Plus size={20} className="group-hover:scale-110 transition-transform" />
-                                <span className="text-[8px] font-black uppercase mt-1">Nouveau</span>
+                                <Plus size={16} />
                             </button>
                         )}
                     </div>
