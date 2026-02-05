@@ -104,27 +104,27 @@ const Dashboard: React.FC = () => {
         <div className="min-h-screen bg-dark-900 text-white">
             <Navbar />
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32">
-                {/* Simplified Header */}
-                <div className="mb-12">
-                    <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-2">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                {/* Header Section */}
+                <div className="mb-10">
+                    <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-2">
                         Hello, {profile?.username || user?.email?.split('@')[0]} <span className="text-brand-500">.</span>
                     </h1>
-                    <p className="text-gray-400 text-lg font-medium">Prêt pour votre prochaine aventure ?</p>
+                    <p className="text-gray-400 text-base font-medium">Prêt pour votre prochaine aventure ?</p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {/* New Trip Card - Always first */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {/* New Trip Card */}
                     <div
                         onClick={() => navigate('/new-trip')}
-                        className="group bg-dark-800/20 border-2 border-dashed border-white/10 hover:border-brand-500/50 rounded-[32px] p-6 transition-all duration-300 cursor-pointer flex flex-col items-center justify-center min-h-[300px] hover:bg-brand-500/5"
+                        className="group bg-gradient-to-br from-dark-800 via-dark-800 to-dark-900 border border-dashed border-white/10 hover:border-brand-500/50 rounded-[28px] p-6 transition-all duration-300 cursor-pointer flex flex-col items-center justify-center min-h-[280px] hover:shadow-xl hover:shadow-brand-500/10"
                     >
-                        <div className="w-20 h-20 rounded-full bg-dark-800 border border-white/5 flex items-center justify-center text-gray-400 group-hover:scale-110 group-hover:bg-brand-500 group-hover:text-white transition-all duration-300 mb-6 shadow-xl">
-                            <Plus size={32} />
+                        <div className="w-16 h-16 rounded-2xl bg-dark-900/80 border border-white/5 flex items-center justify-center text-gray-400 group-hover:scale-110 group-hover:bg-brand-500 group-hover:text-white transition-all duration-300 mb-5 shadow-xl">
+                            <Plus size={28} />
                         </div>
-                        <h3 className="text-xl font-bold text-white mb-2 group-hover:text-brand-500 transition-colors">Créer un voyage</h3>
-                        <p className="text-gray-500 text-sm text-center max-w-[200px] group-hover:text-gray-400 transition-colors">
-                            Planifiez votre prochaine évasion en quelques clics
+                        <h3 className="text-lg font-black text-white mb-1.5 group-hover:text-brand-500 transition-colors">Créer un voyage</h3>
+                        <p className="text-gray-500 text-sm text-center max-w-[180px] group-hover:text-gray-400 transition-colors">
+                            Planifiez votre prochaine évasion
                         </p>
                     </div>
 
@@ -133,36 +133,36 @@ const Dashboard: React.FC = () => {
                         <div
                             key={trip.id}
                             onClick={() => navigate(`/trips/${trip.id}/day/1`)}
-                            className="group bg-dark-800 border border-white/5 hover:border-brand-500/30 rounded-[32px] p-8 transition-all duration-300 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] cursor-pointer flex flex-col h-full relative overflow-hidden min-h-[300px]"
+                            className="group bg-gradient-to-br from-dark-800 via-dark-800 to-dark-900 border border-white/5 hover:border-brand-500/30 rounded-[28px] p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-black/50 cursor-pointer flex flex-col h-full relative overflow-hidden min-h-[280px]"
                         >
-                            {/* Background Pattern/Gradient */}
-                            <div className="absolute top-0 right-0 p-8 opacity-[0.02] group-hover:opacity-[0.05] transition-opacity duration-500">
-                                <Map size={140} />
+                            {/* Background Pattern */}
+                            <div className="absolute top-0 right-0 p-6 opacity-[0.02] group-hover:opacity-[0.05] transition-opacity duration-500">
+                                <Map size={120} />
                             </div>
 
                             <div className="relative z-10 flex flex-col h-full">
-                                <div className="flex justify-between items-start mb-8">
-                                    <div className="w-20 h-20 rounded-[28px] bg-dark-900 border border-white/5 flex items-center justify-center text-5xl shadow-2xl group-hover:scale-105 group-hover:rotate-3 transition-transform duration-500">
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className="w-16 h-16 rounded-2xl bg-dark-900/80 border border-white/5 flex items-center justify-center text-4xl shadow-2xl group-hover:scale-105 group-hover:rotate-2 transition-transform duration-500">
                                         {trip.preferences?.emoji || '🚩'}
                                     </div>
 
-                                    {/* Members Pill */}
-                                    <div className="flex -space-x-3">
+                                    {/* Members Avatars */}
+                                    <div className="flex -space-x-2">
                                         {trip.members && trip.members.length > 0 ? (
                                             <>
                                                 {trip.members.slice(0, 3).map((member) => (
-                                                    <div key={member.user_id} className="w-10 h-10 rounded-full bg-dark-900 border-2 border-dark-800 flex items-center justify-center text-lg shadow-lg relative z-10" title={member.user?.username}>
+                                                    <div key={member.user_id} className="w-9 h-9 rounded-full bg-dark-700 border-2 border-dark-800 flex items-center justify-center text-base shadow-lg" title={member.user?.username}>
                                                         {member.user?.emoji || '👤'}
                                                     </div>
                                                 ))}
                                                 {trip.members.length > 3 && (
-                                                    <div className="w-10 h-10 rounded-full bg-brand-500/10 border-2 border-dark-800 flex items-center justify-center text-xs font-black text-brand-500 shadow-lg z-20">
+                                                    <div className="w-9 h-9 rounded-full bg-brand-500/10 border-2 border-dark-800 flex items-center justify-center text-[10px] font-black text-brand-500 shadow-lg">
                                                         +{trip.members.length - 3}
                                                     </div>
                                                 )}
                                             </>
                                         ) : (
-                                            <div className="w-10 h-10 rounded-full bg-dark-900 border-2 border-dark-800 flex items-center justify-center text-lg shadow-lg">
+                                            <div className="w-9 h-9 rounded-full bg-dark-700 border-2 border-dark-800 flex items-center justify-center text-base shadow-lg">
                                                 👤
                                             </div>
                                         )}
@@ -170,17 +170,17 @@ const Dashboard: React.FC = () => {
                                 </div>
 
                                 <div className="mt-auto">
-                                    <h3 className="text-2xl font-black text-white mb-3 group-hover:text-brand-500 transition-colors line-clamp-1 leading-tight tracking-tight">{trip.title}</h3>
+                                    <h3 className="text-xl font-black text-white mb-3 group-hover:text-brand-500 transition-colors line-clamp-1 tracking-tight">{trip.title}</h3>
 
-                                    <div className="flex flex-col gap-2.5">
-                                        <div className="flex items-center gap-2.5 text-gray-400 text-sm font-bold bg-white/5 w-fit px-3 py-1.5 rounded-lg">
-                                            <Calendar size={14} className="text-brand-500" />
+                                    <div className="flex flex-wrap gap-2">
+                                        <div className="flex items-center gap-2 text-gray-400 text-[11px] font-bold bg-dark-900/60 px-3 py-1.5 rounded-lg border border-white/5">
+                                            <Calendar size={12} className="text-brand-500/70" />
                                             <span>
                                                 {trip.start_date ? new Date(trip.start_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : 'Date flexible'}
                                             </span>
                                         </div>
-                                        <div className="flex items-center gap-2.5 text-gray-400 text-sm font-bold bg-white/5 w-fit px-3 py-1.5 rounded-lg">
-                                            <Clock size={14} className="text-gray-500" />
+                                        <div className="flex items-center gap-2 text-gray-400 text-[11px] font-bold bg-dark-900/60 px-3 py-1.5 rounded-lg border border-white/5">
+                                            <Clock size={12} className="text-gray-500" />
                                             <span>{trip.duration_days || 0} jours</span>
                                         </div>
                                     </div>
@@ -189,8 +189,8 @@ const Dashboard: React.FC = () => {
                         </div>
                     ))}
                 </div>
-            </main >
-        </div >
+            </main>
+        </div>
     );
 };
 

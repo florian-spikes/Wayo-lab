@@ -288,112 +288,112 @@ const Profile: React.FC = () => {
                 </div>
             )}
 
-            <main className="max-w-3xl mx-auto px-4 pt-32">
+            <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 <button
                     onClick={handleBack}
-                    className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-8 group cursor-pointer"
+                    className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6 group cursor-pointer text-sm font-bold"
                 >
-                    <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+                    <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
                     Retour
                 </button>
 
-                <div className="bg-dark-800/50 border border-white/5 backdrop-blur-md rounded-3xl overflow-hidden shadow-2xl">
+                <div className="bg-gradient-to-br from-dark-800 via-dark-800 to-dark-900 border border-white/5 rounded-[28px] overflow-hidden shadow-2xl shadow-black/40">
                     {/* Header Info avec Date */}
-                    <div className="bg-gradient-to-r from-brand-600/20 to-blue-600/20 p-8 border-b border-white/5">
-                        <div className="flex flex-col md:flex-row items-center gap-6">
+                    <div className="bg-gradient-to-r from-brand-500/10 to-blue-600/10 p-6 md:p-8 border-b border-white/5">
+                        <div className="flex flex-col md:flex-row items-center gap-5">
                             <button
                                 type="button"
                                 onClick={() => setShowEmojiPicker(true)}
-                                className="w-24 h-24 rounded-full bg-dark-900 border-2 border-brand-500/50 flex items-center justify-center text-5xl shadow-xl hover:border-brand-500 transition-all cursor-pointer group relative"
+                                className="w-20 h-20 rounded-2xl bg-dark-900/80 border-2 border-brand-500/30 flex items-center justify-center text-4xl shadow-xl hover:border-brand-500 transition-all cursor-pointer group relative"
                             >
                                 {emoji}
-                                <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Smile size={24} className="text-white" />
+                                <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Smile size={20} className="text-white" />
                                 </div>
                             </button>
 
                             <div className="text-center md:text-left">
-                                <h1 className="text-3xl font-bold mb-1">{profile?.username || user.email?.split('@')[0]}</h1>
+                                <h1 className="text-2xl font-black text-white mb-1.5">{profile?.username || user.email?.split('@')[0]}</h1>
                                 <div className="space-y-1">
-                                    <p className="text-gray-300 flex items-center justify-center md:justify-start gap-2 text-sm">
-                                        <Mail size={14} className="text-gray-500" /> {user.email}
+                                    <p className="text-gray-300 flex items-center justify-center md:justify-start gap-2 text-[11px] font-bold">
+                                        <Mail size={12} className="text-gray-500" /> {user.email}
                                     </p>
-                                    <p className="text-gray-500 font-light flex items-center justify-center md:justify-start gap-2 text-xs">
-                                        <Calendar size={12} /> Utilisateur Tori depuis le {registrationDate}
+                                    <p className="text-gray-500 flex items-center justify-center md:justify-start gap-2 text-[11px] font-medium">
+                                        <Calendar size={11} className="text-brand-500/70" /> Utilisateur Tori depuis le {registrationDate}
                                     </p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <form onSubmit={handleSave} className="p-8 space-y-10">
+                    <form onSubmit={handleSave} className="p-6 md:p-8 space-y-8">
                         {/* Section Localisation */}
-                        <div className="space-y-6">
-                            <h2 className="text-sm font-bold uppercase tracking-widest text-brand-500 flex items-center gap-2">
-                                <MapPin size={16} /> Localisation
+                        <div className="space-y-5">
+                            <h2 className="text-[10px] font-black uppercase tracking-widest text-brand-500 flex items-center gap-2">
+                                <MapPin size={14} /> Localisation
                             </h2>
 
                             <div className="space-y-2">
-                                <label className="text-sm text-gray-400 ml-1 font-medium">Ville actuelle</label>
+                                <label className="text-[11px] text-gray-400 ml-1 font-bold">Ville actuelle</label>
                                 <div className="relative">
-                                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
                                     <input
                                         type="text"
                                         value={location}
                                         onChange={(e) => setLocation(e.target.value)}
                                         placeholder="Ex: Paris, France"
-                                        className="w-full bg-dark-900/50 border border-white/10 rounded-xl py-3 pl-11 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all font-medium"
+                                        className="w-full bg-dark-900/60 border border-white/5 rounded-xl py-3 pl-11 pr-4 text-white focus:outline-none focus:border-brand-500/50 transition-all text-sm font-medium"
                                     />
                                 </div>
-                                <p className="text-[10px] text-gray-500 ml-1 italic">* Le nom d'utilisateur n'est pas modifiable.</p>
+                                <p className="text-[10px] text-gray-500 ml-1">* Le nom d'utilisateur n'est pas modifiable.</p>
                             </div>
                         </div>
 
-                        {/* Section Sécurité Simplifiée */}
-                        <div className="space-y-6 pt-6 border-t border-white/5">
-                            <h2 className="text-sm font-bold uppercase tracking-widest text-brand-500 flex items-center gap-2">
-                                <Lock size={16} /> Sécurité & Mot de passe
+                        {/* Section Sécurité */}
+                        <div className="space-y-5 pt-6 border-t border-white/5">
+                            <h2 className="text-[10px] font-black uppercase tracking-widest text-brand-500 flex items-center gap-2">
+                                <Lock size={14} /> Sécurité & Mot de passe
                             </h2>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <div className="space-y-2">
-                                    <label className="text-sm text-gray-400 ml-1 font-medium">Ancien mot de passe</label>
+                                    <label className="text-[11px] text-gray-400 ml-1 font-bold">Ancien mot de passe</label>
                                     <div className="relative">
-                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
                                         <input
                                             type={showCurrentPassword ? "text" : "password"}
                                             value={currentPassword}
                                             onChange={(e) => setCurrentPassword(e.target.value)}
                                             placeholder="Mot de passe actuel"
-                                            className="w-full bg-dark-900/50 border border-white/10 rounded-xl py-3 pl-11 pr-12 text-white focus:outline-none focus:border-brand-500 transition-all"
+                                            className="w-full bg-dark-900/60 border border-white/5 rounded-xl py-3 pl-11 pr-12 text-white focus:outline-none focus:border-brand-500/50 transition-all text-sm"
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                                             className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
                                         >
-                                            {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                         </button>
                                     </div>
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-sm text-gray-400 ml-1 font-medium">Nouveau mot de passe</label>
+                                    <label className="text-[11px] text-gray-400 ml-1 font-bold">Nouveau mot de passe</label>
                                     <div className="relative">
-                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
                                         <input
                                             type={showPassword ? "text" : "password"}
                                             value={newPassword}
                                             onChange={(e) => setNewPassword(e.target.value)}
                                             placeholder="Nouveau (min 6 char.)"
-                                            className="w-full bg-dark-900/50 border border-white/10 rounded-xl py-3 pl-11 pr-12 text-white focus:outline-none focus:border-brand-500 transition-all"
+                                            className="w-full bg-dark-900/60 border border-white/5 rounded-xl py-3 pl-11 pr-12 text-white focus:outline-none focus:border-brand-500/50 transition-all text-sm"
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword(!showPassword)}
                                             className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
                                         >
-                                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                         </button>
                                     </div>
                                 </div>
@@ -401,29 +401,29 @@ const Profile: React.FC = () => {
                         </div>
 
                         {/* Footer Actions */}
-                        <div className="flex items-center justify-between gap-4 pt-8 border-t border-white/5">
-                            <p className={`text-sm font-medium transition-all ${successMessage ? 'text-green-400 opacity-100 flex items-center gap-2' : 'text-gray-500 opacity-0'}`}>
-                                <Check size={16} /> {successMessage}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-6 border-t border-white/5">
+                            <p className={`text-[11px] font-bold transition-all ${successMessage ? 'text-green-400 opacity-100 flex items-center gap-2' : 'text-gray-500 opacity-0'}`}>
+                                <Check size={14} /> {successMessage}
                             </p>
 
-                            <div className="flex gap-3">
+                            <div className="flex gap-2 w-full sm:w-auto">
                                 <button
                                     type="button"
                                     onClick={handleBack}
-                                    className="px-6 py-3 bg-dark-900 hover:bg-dark-700 text-white font-semibold rounded-xl transition-all border border-white/5 cursor-pointer"
+                                    className="flex-1 sm:flex-initial px-5 py-2.5 bg-dark-900/60 hover:bg-dark-700 text-white text-[11px] font-black uppercase tracking-widest rounded-xl transition-all border border-white/5 cursor-pointer"
                                 >
                                     Fermer
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={loading || !isDirty}
-                                    className="px-8 py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-30 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-lg shadow-brand-500/20 flex items-center gap-2 cursor-pointer min-w-[140px] justify-center"
+                                    className="flex-1 sm:flex-initial px-5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:opacity-30 disabled:cursor-not-allowed text-white text-[11px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2 cursor-pointer justify-center"
                                 >
                                     {loading ? (
-                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                                     ) : (
                                         <>
-                                            <Save size={18} />
+                                            <Save size={14} />
                                             Enregistrer
                                         </>
                                     )}

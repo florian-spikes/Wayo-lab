@@ -1340,41 +1340,40 @@ const TripEditor: React.FC = () => {
                             </div>
                         </div>
                     </div>
-
-                    {/* Switch Intégré */}
-                    <div className="px-3 py-3 bg-dark-900/60 border-t border-white/5">
-                        <div className="flex justify-center">
-                            <div className="inline-flex bg-dark-800/80 p-1 rounded-full border border-white/5">
-                                {[
-                                    { id: 'itineraire', label: 'Itinéraire', icon: <MapIcon size={13} />, validated: allDaysLocked },
-                                    { id: 'preparation', label: 'Préparation', icon: <ClipboardList size={13} />, validated: isPreparationValidated },
-                                    { id: 'carnet', label: 'Carnet', icon: <Compass size={13} />, validated: false }
-                                ].map(tab => (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() => setActiveTab(tab.id as any)}
-                                        className={`relative flex items-center gap-1.5 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${activeTab === tab.id ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/25' : 'text-gray-500 hover:text-white'}`}
-                                    >
-                                        {tab.icon}
-                                        <span className="hidden sm:inline">{tab.label}</span>
-                                        <span className="sm:hidden">{tab.label.slice(0, 4)}</span>
-                                        {tab.validated && (
-                                            <div className="absolute -top-0.5 -right-0.5 bg-green-500 text-white w-3.5 h-3.5 rounded-full flex items-center justify-center border-2 border-dark-800">
-                                                <Check size={7} strokeWidth={4} />
-                                            </div>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </header>
 
+            {/* Switch Container - Séparé */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div className="flex justify-center">
+                    <div className="bg-gradient-to-br from-dark-800 via-dark-800 to-dark-900 rounded-full border border-white/5 p-1.5 shadow-xl shadow-black/30">
+                        {[
+                            { id: 'itineraire', label: 'Itinéraire', icon: <MapIcon size={14} />, validated: allDaysLocked },
+                            { id: 'preparation', label: 'Préparation', icon: <ClipboardList size={14} />, validated: isPreparationValidated },
+                            { id: 'carnet', label: 'Carnet', icon: <Compass size={14} />, validated: false }
+                        ].map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as any)}
+                                className={`relative inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-all ${activeTab === tab.id ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/25' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                            >
+                                {tab.icon}
+                                <span className="hidden sm:inline">{tab.label}</span>
+                                <span className="sm:hidden">{tab.label.slice(0, 4)}</span>
+                                {tab.validated && (
+                                    <div className="absolute -top-1 -right-1 bg-green-500 text-white w-4 h-4 rounded-full flex items-center justify-center border-2 border-dark-800">
+                                        <Check size={8} strokeWidth={4} />
+                                    </div>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
 
             {/* Day Selector (Itinerary Only) */}
             {activeTab === 'itineraire' && (
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 mb-6">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
                     <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-2">
                         {days.map((day) => (
                             <button
@@ -1406,155 +1405,162 @@ const TripEditor: React.FC = () => {
             {/* Timeline Main - Itinerary Tab */}
             {activeTab === 'itineraire' && (
                 <>
-                    <main className="max-w-7xl mx-auto px-4 pt-12 pb-20">
-                        <div className="mb-12 pl-12 py-2 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                            <div className="flex-1 space-y-2">
-                                <div className="flex items-center gap-3 group/title">
-                                    <input
-                                        type="text"
-                                        value={currentDay?.title || ''}
-                                        placeholder={`Journée ${activeDayIndex}`}
-                                        onChange={(e) => handleUpdateDayTitle(e.target.value)}
-                                        disabled={!isLockedByMe} // Only editable if locked by current user
-                                        className={`bg-transparent border-none text-2xl md:text-3xl font-black focus:ring-0 p-0 w-full transition-colors cursor-text ${isLockedByMe ? 'text-white/90 hover:text-white placeholder:text-white/10' : 'text-gray-500 cursor-not-allowed'}`}
-                                    />
-                                </div>
-                                <div className="flex items-center gap-4 text-gray-500 font-bold tracking-tight text-sm">
-                                    <div className="flex items-center gap-1.5 uppercase tracking-widest text-[10px]">
-                                        <Calendar size={12} className="text-brand-500/50" />
-                                        {formattedDate}
-                                    </div>
-                                    <div className="w-1 h-1 rounded-full bg-white/10"></div>
-                                    {isLockedBySomeoneElse ? (
-                                        <div className="flex items-center gap-1.5 uppercase tracking-widest text-[10px] text-orange-500 animate-pulse">
-                                            <Lock size={12} />
-                                            En cours d'édition par {editingUser?.username || 'un utilisateur'}
-                                            {isOwner && (
-                                                <button onClick={handleForceUnlock} className="ml-2 underline text-[9px] text-red-500 hover:text-red-400">
-                                                    Forcer
-                                                </button>
+                    {/* Container Principal Itinéraire - Design cohérent avec Hero Card */}
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+                        <div className="bg-gradient-to-br from-dark-800 via-dark-800 to-dark-900 rounded-[28px] border border-white/5 overflow-hidden shadow-2xl shadow-black/40">
+
+                            {/* Header Journée */}
+                            <div className="p-5 md:p-6 border-b border-white/5">
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div className="flex-1 space-y-2">
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="text"
+                                                value={currentDay?.title || ''}
+                                                placeholder={`Journée ${activeDayIndex}`}
+                                                onChange={(e) => handleUpdateDayTitle(e.target.value)}
+                                                disabled={!isLockedByMe}
+                                                className={`bg-transparent border-none text-xl md:text-2xl font-black focus:ring-0 p-0 w-full transition-colors ${isLockedByMe ? 'text-white/90 hover:text-white placeholder:text-white/20' : 'text-gray-500 cursor-not-allowed'}`}
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-3 text-[11px] font-bold text-gray-400">
+                                            <span className="flex items-center gap-1.5">
+                                                <Calendar size={11} className="text-brand-500/70" />
+                                                {formattedDate}
+                                            </span>
+                                            <span className="w-1 h-1 rounded-full bg-white/10"></span>
+                                            {isLockedBySomeoneElse ? (
+                                                <span className="flex items-center gap-1.5 text-orange-400 animate-pulse">
+                                                    <Lock size={11} />
+                                                    Édité par {editingUser?.username || 'un utilisateur'}
+                                                    {isOwner && (
+                                                        <button onClick={handleForceUnlock} className="ml-1 underline text-[9px] text-red-400 hover:text-red-300">Forcer</button>
+                                                    )}
+                                                </span>
+                                            ) : isLockedByMe ? (
+                                                <span className="flex items-center gap-1.5 text-green-400">
+                                                    <CheckCircle2 size={11} />
+                                                    Mode Édition
+                                                </span>
+                                            ) : (
+                                                <span className="flex items-center gap-1.5">
+                                                    <Zap size={11} className="text-brand-500/70" />
+                                                    {isDayLoading ? 'Chargement...' : `${cards.length} évènement${cards.length > 1 ? 's' : ''}`}
+                                                </span>
                                             )}
                                         </div>
-                                    ) : isLockedByMe ? (
-                                        <div className="flex items-center gap-1.5 uppercase tracking-widest text-[10px] text-green-500">
-                                            <CheckCircle2 size={12} />
-                                            Mode Édition activé
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-1.5 uppercase tracking-widest text-[10px]">
-                                            <Zap size={12} className="text-brand-500/50" />
-                                            {isDayLoading ? 'Chargement...' : `${cards.length} évènement${cards.length > 1 ? 's' : ''}`}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-3">
-                                {/* Tori IA Button in Header */}
-                                <button className="h-10 px-4 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center gap-2 hover:bg-brand-500/20 transition-all shadow-lg group/ia" title="Utiliser Tori IA">
-                                    <ToriLogo size={20} color="#f97316" className="group-hover/ia:scale-110 transition-transform" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-brand-500">Utiliser Tori IA</span>
-                                </button>
-
-                                {/* Modify / Save Button */}
-                                {canEditGlobal && (
-                                    isLockedByMe ? (
-                                        <button
-                                            onClick={handleReleaseLock}
-                                            className="h-10 px-4 rounded-xl border flex items-center gap-2 transition-all active:scale-95 shadow-lg text-[10px] font-black uppercase tracking-widest bg-green-500 border-green-600 text-white hover:bg-green-600"
-                                        >
-                                            <Save size={14} />
-                                            <span>Enregistrer</span>
-                                        </button>
-                                    ) : (
-                                        <button
-                                            onClick={handleRequestLock}
-                                            disabled={isLockedBySomeoneElse}
-                                            className={`h-10 px-4 rounded-xl border flex items-center gap-2 transition-all active:scale-95 shadow-lg text-[10px] font-black uppercase tracking-widest ${isLockedBySomeoneElse ? 'bg-dark-800 border-white/5 text-gray-600 cursor-not-allowed opacity-50' : 'bg-brand-500 border-brand-600 text-white hover:bg-brand-600'}`}
-                                        >
-                                            {isLockedBySomeoneElse ? <Lock size={14} /> : <CheckSquare size={14} />}
-                                            <span>{isLockedBySomeoneElse ? 'Verrouillé' : 'Modifier'}</span>
-                                        </button>
-                                    )
-                                )}
-
-                                {canEditGlobal && (
-                                    <button
-                                        onClick={handleDeleteDay}
-                                        disabled={!isLockedByMe} // Only delete if you hold the lock? Or maybe allowed if just EDITOR? Safe bet: must be in edit mode.
-                                        className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all group scale-105 ${!isLockedByMe ? 'bg-dark-800 border-white/5 text-gray-700 cursor-not-allowed' : 'bg-red-500/10 border-red-500/20 text-red-500 hover:text-white hover:bg-red-500 hover:border-red-600'}`}
-                                        title="Supprimer cette journée"
-                                    >
-                                        <Trash2 size={16} className={isLockedByMe ? "group-hover:scale-110 transition-transform" : ""} />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="relative before:absolute before:left-6 before:top-4 before:bottom-4 before:w-0.5 before:bg-brand-500/20">
-                            {isDayLoading ? (
-                                <div className="space-y-6">
-                                    <CardSkeleton />
-                                    <CardSkeleton />
-                                    <CardSkeleton />
-                                </div>
-                            ) : cards.length === 0 ? (
-                                <button
-                                    onClick={() => isLockedByMe && setShowAddSheet(true)}
-                                    disabled={!isLockedByMe}
-                                    className={`ml-12 w-[calc(100%-3rem)] bg-dark-800/20 border-2 border-dashed border-white/5 rounded-[32px] py-16 flex flex-col items-center justify-center gap-4 transition-all group ${isLockedByMe ? 'hover:border-brand-500/30 hover:bg-brand-500/5 cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
-                                >
-                                    <div className="w-16 h-16 rounded-2xl bg-dark-800 border border-white/10 flex items-center justify-center text-gray-500 group-hover:scale-110 group-hover:border-brand-500/30 group-hover:text-brand-500 transition-all">
-                                        <Plus size={32} />
                                     </div>
-                                    <div className="text-center">
-                                        <p className="text-gray-500 font-bold mb-1">Rien de prévu pour ce jour.</p>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-500/50 group-hover:text-brand-500 transition-colors">
-                                            {isLockedByMe ? 'Ajouter votre première étape' : 'Cliquez sur "Modifier" pour commencer'}
-                                        </p>
-                                    </div>
-                                </button>
-                            ) : (
-                                <DndContext
-                                    sensors={sensors}
-                                    collisionDetection={closestCenter}
-                                    onDragEnd={handleDragEnd}
-                                    modifiers={[restrictToVerticalAxis]}
-                                >
-                                    <div className="space-y-6">
-                                        <SortableContext
-                                            items={cards.map(c => c.id)}
-                                            strategy={verticalListSortingStrategy}
-                                        >
-                                            {cards.map((card) => (
-                                                <SortableCard
-                                                    key={card.id}
-                                                    card={card}
-                                                    isLocked={!isLockedByMe} // LOCKED if NOT locked by me (i.e. I'm not editing)
-                                                    onEdit={() => isLockedByMe && openEdit(card)} // Only allow open edit if I strictly hold lock
-                                                    checklistCount={checklistItems.filter(i => i.card_id === card.id).length}
-                                                />
-                                            ))}
-                                        </SortableContext>
 
-                                        {/* Add Activity Card at the End of Timeline */}
-                                        {isLockedByMe && (
+                                    <div className="flex items-center gap-2">
+                                        {/* Tori IA Button */}
+                                        <button className="h-9 px-3 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center gap-2 hover:bg-brand-500/20 transition-all group/ia" title="Utiliser Tori IA">
+                                            <ToriLogo size={18} color="#f97316" className="group-hover/ia:scale-110 transition-transform" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-brand-500 hidden sm:inline">Tori IA</span>
+                                        </button>
+
+                                        {/* Modify / Save Button */}
+                                        {canEditGlobal && (
+                                            isLockedByMe ? (
+                                                <button
+                                                    onClick={handleReleaseLock}
+                                                    className="h-9 px-4 rounded-xl flex items-center gap-2 transition-all active:scale-95 text-[10px] font-black uppercase tracking-widest bg-green-500 text-white hover:bg-green-600"
+                                                >
+                                                    <Save size={14} />
+                                                    <span className="hidden sm:inline">Enregistrer</span>
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={handleRequestLock}
+                                                    disabled={isLockedBySomeoneElse}
+                                                    className={`h-9 px-4 rounded-xl flex items-center gap-2 transition-all active:scale-95 text-[10px] font-black uppercase tracking-widest ${isLockedBySomeoneElse ? 'bg-dark-700 text-gray-600 cursor-not-allowed opacity-50' : 'bg-brand-500 text-white hover:bg-brand-600'}`}
+                                                >
+                                                    {isLockedBySomeoneElse ? <Lock size={14} /> : <CheckSquare size={14} />}
+                                                    <span className="hidden sm:inline">{isLockedBySomeoneElse ? 'Verrouillé' : 'Modifier'}</span>
+                                                </button>
+                                            )
+                                        )}
+
+                                        {canEditGlobal && (
                                             <button
-                                                onClick={() => setShowAddSheet(true)}
-                                                className="w-full ml-12 bg-dark-800/20 border-2 border-dashed border-white/5 rounded-[32px] p-8 flex flex-col items-center justify-center gap-4 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group"
+                                                onClick={handleDeleteDay}
+                                                disabled={!isLockedByMe}
+                                                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all group ${!isLockedByMe ? 'bg-dark-700 text-gray-600 cursor-not-allowed' : 'bg-red-500/10 text-red-400 hover:text-white hover:bg-red-500'}`}
+                                                title="Supprimer cette journée"
                                             >
-                                                <div className="w-12 h-12 rounded-2xl bg-dark-800 border border-white/10 flex items-center justify-center text-gray-500 group-hover:scale-110 group-hover:border-brand-500/30 group-hover:text-brand-500 transition-all">
-                                                    <Plus size={24} />
-                                                </div>
-                                                <span className="text-xs font-black uppercase tracking-widest text-gray-600 group-hover:text-brand-500 transition-colors">Ajouter une étape à la journée</span>
+                                                <Trash2 size={14} className={isLockedByMe ? "group-hover:scale-110 transition-transform" : ""} />
                                             </button>
                                         )}
                                     </div>
-                                </DndContext>
-                            )}
-                        </div>
-                    </main>
+                                </div>
+                            </div>
 
+                            {/* Timeline Content */}
+                            <div className="p-5 md:p-6">
+                                <div className="relative before:absolute before:left-3 before:top-0 before:bottom-0 before:w-0.5 before:bg-brand-500/20 before:rounded-full">
+                                    {isDayLoading ? (
+                                        <div className="space-y-4 pl-8">
+                                            <CardSkeleton />
+                                            <CardSkeleton />
+                                            <CardSkeleton />
+                                        </div>
+                                    ) : cards.length === 0 ? (
+                                        <button
+                                            onClick={() => isLockedByMe && setShowAddSheet(true)}
+                                            disabled={!isLockedByMe}
+                                            className={`ml-8 w-[calc(100%-2rem)] bg-dark-900/40 border-2 border-dashed border-white/10 rounded-2xl py-12 flex flex-col items-center justify-center gap-3 transition-all group ${isLockedByMe ? 'hover:border-brand-500/30 hover:bg-brand-500/5 cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
+                                        >
+                                            <div className="w-12 h-12 rounded-xl bg-dark-800 border border-white/10 flex items-center justify-center text-gray-500 group-hover:scale-110 group-hover:border-brand-500/30 group-hover:text-brand-500 transition-all">
+                                                <Plus size={24} />
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-gray-400 font-bold text-sm mb-1">Rien de prévu</p>
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-brand-500/50 group-hover:text-brand-500 transition-colors">
+                                                    {isLockedByMe ? 'Ajouter votre première étape' : 'Cliquez sur "Modifier"'}
+                                                </p>
+                                            </div>
+                                        </button>
+                                    ) : (
+                                        <DndContext
+                                            sensors={sensors}
+                                            collisionDetection={closestCenter}
+                                            onDragEnd={handleDragEnd}
+                                            modifiers={[restrictToVerticalAxis]}
+                                        >
+                                            <div className="space-y-4 pl-8">
+                                                <SortableContext
+                                                    items={cards.map(c => c.id)}
+                                                    strategy={verticalListSortingStrategy}
+                                                >
+                                                    {cards.map((card) => (
+                                                        <SortableCard
+                                                            key={card.id}
+                                                            card={card}
+                                                            isLocked={!isLockedByMe}
+                                                            onEdit={() => isLockedByMe && openEdit(card)}
+                                                            checklistCount={checklistItems.filter(i => i.card_id === card.id).length}
+                                                        />
+                                                    ))}
+                                                </SortableContext>
+
+                                                {/* Add Activity Card */}
+                                                {isLockedByMe && (
+                                                    <button
+                                                        onClick={() => setShowAddSheet(true)}
+                                                        className="w-full bg-dark-900/40 border-2 border-dashed border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group"
+                                                    >
+                                                        <div className="w-10 h-10 rounded-xl bg-dark-800 border border-white/10 flex items-center justify-center text-gray-500 group-hover:scale-110 group-hover:border-brand-500/30 group-hover:text-brand-500 transition-all">
+                                                            <Plus size={20} />
+                                                        </div>
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-brand-500 transition-colors">Ajouter une étape</span>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </DndContext>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </>
             )}
 
