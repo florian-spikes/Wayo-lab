@@ -1242,7 +1242,7 @@ const TripEditor: React.FC = () => {
             <Navbar />
 
             {/* HERO CARD - Container Principal Mobile-First */}
-            <header className="pt-20 pb-4 px-4 max-w-4xl mx-auto">
+            <header className="pt-6 pb-4 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
                 {/* Bouton Retour */}
                 <Link to="/dashboard" className="inline-flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-white transition-colors mb-4 group">
                     <div className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-brand-500 group-hover:text-white transition-all">
@@ -1374,7 +1374,7 @@ const TripEditor: React.FC = () => {
 
             {/* Day Selector (Itinerary Only) */}
             {activeTab === 'itineraire' && (
-                <div className="max-w-4xl mx-auto px-4 mt-6 mb-6">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 mb-6">
                     <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-2">
                         {days.map((day) => (
                             <button

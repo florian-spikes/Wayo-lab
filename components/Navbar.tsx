@@ -28,9 +28,20 @@ const Navbar: React.FC = () => {
   );
 
   return (
-    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50">
-      <nav className="bg-dark-900/90 backdrop-blur-2xl border border-white/10 rounded-full px-2 py-2 flex items-center shadow-2xl shadow-black/50 gap-2">
-        {/* Left: My Trips */}
+    <div className="w-full flex justify-center pt-6 pb-2 px-4">
+      <nav className="bg-dark-900/90 backdrop-blur-2xl border border-white/10 rounded-full px-2 py-2 flex items-center shadow-2xl shadow-black/50 gap-1">
+        {/* Logo Tori */}
+        <Link
+          to="/"
+          className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-white/5 transition-all group"
+        >
+          <ToriLogo size={24} color="#f97316" className="group-hover:scale-110 transition-transform" />
+          <span className="text-sm font-black uppercase tracking-widest text-white hidden sm:block">Tori</span>
+        </Link>
+
+        <div className="w-px h-6 bg-white/10 mx-1"></div>
+
+        {/* My Trips */}
         <Link
           to="/dashboard"
           className="flex items-center gap-3 px-4 py-2 rounded-full hover:bg-white/5 transition-all text-white group"
@@ -38,12 +49,12 @@ const Navbar: React.FC = () => {
           <div className="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center text-white shadow-lg shadow-brand-500/20 group-hover:scale-110 transition-transform">
             <Map size={16} />
           </div>
-          <span className="text-sm font-bold tracking-tight">Mes voyages</span>
+          <span className="text-sm font-bold tracking-tight hidden sm:block">Mes voyages</span>
         </Link>
 
         <div className="w-px h-6 bg-white/10 mx-1"></div>
 
-        {/* Right: Profile */}
+        {/* Profile */}
         <Link
           to="/profile"
           className="flex items-center gap-3 px-4 py-2 rounded-full hover:bg-white/5 transition-all text-white group"
