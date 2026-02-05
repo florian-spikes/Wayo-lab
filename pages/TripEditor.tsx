@@ -1266,7 +1266,7 @@ const TripEditor: React.FC = () => {
                             <button
                                 onClick={() => isOwner && setShowEmojiPicker(true)}
                                 disabled={!isOwner}
-                                className={`relative w-32 h-32 md:w-40 md:h-40 bg-dark-800 border border-white/10 rounded-[40px] flex items-center justify-center text-7xl md:text-8xl shadow-2xl transition-all duration-500 ${isOwner ? 'hover:scale-105 hover:border-brand-500/50 cursor-pointer active:scale-95' : 'cursor-default'}`}
+                                className={`relative w-32 h-32 bg-dark-800 border border-white/10 rounded-[40px] flex items-center justify-center text-[4rem] shadow-2xl transition-all duration-500 ${isOwner ? 'hover:scale-105 hover:border-brand-500/50 cursor-pointer active:scale-95' : 'cursor-default'}`}
                             >
                                 {tripEmoji}
                                 {isOwner && (
@@ -1289,7 +1289,7 @@ const TripEditor: React.FC = () => {
                                 </span>
                             </div>
 
-                            <h1 className="text-3xl md:text-5xl font-black leading-tight tracking-tighter">
+                            <h1 className="text-[2rem] font-black leading-tight tracking-tighter">
                                 {trip.title}
                             </h1>
 
