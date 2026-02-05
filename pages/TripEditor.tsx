@@ -1241,83 +1241,140 @@ const TripEditor: React.FC = () => {
         <div className="min-h-screen bg-dark-900 text-white pb-40 overflow-x-hidden">
             <Navbar />
 
-            {/* Minimalist Header */}
-            <header className="pt-24 pb-6 px-4 max-w-7xl mx-auto">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    {/* Left: Title & Status */}
-                    <div className="flex-1">
-                        <Link to="/dashboard" className="inline-flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-white transition-colors mb-4 group">
-                            <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-brand-500 group-hover:text-white transition-all">
-                                <ChevronLeft size={14} />
-                            </div>
-                            Retour
-                        </Link>
-                        <div className="flex items-center gap-4 mb-2">
-                            <h1 className="text-3xl font-black tracking-tight">{trip.title}</h1>
-                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${allDaysLocked ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-orange-500/10 text-orange-500 border-orange-500/20'}`}>
-                                {allDaysLocked ? 'Prêt' : 'En cours'}
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-4 text-xs font-bold text-gray-500">
-                            <span className="flex items-center gap-1.5"><MapPin size={12} /> {trip.destination_country}</span>
-                            <span className="flex items-center gap-1.5"><Clock size={12} /> {trip.duration_days} jours</span>
-                        </div>
+            {/* HERO CARD - Container Principal Mobile-First */}
+            <header className="pt-20 pb-4 px-4 max-w-4xl mx-auto">
+                {/* Bouton Retour */}
+                <Link to="/dashboard" className="inline-flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-white transition-colors mb-4 group">
+                    <div className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-brand-500 group-hover:text-white transition-all">
+                        <ChevronLeft size={14} />
                     </div>
+                    <span className="group-hover:translate-x-0.5 transition-transform">Retour</span>
+                </Link>
 
-                    {/* Right: Travelers & Actions */}
-                    <div className="flex items-center gap-4">
-                        <div className="flex -space-x-2">
-                            {members.map((member) => (
-                                <div key={member.id} className="w-8 h-8 rounded-full bg-dark-800 border-2 border-dark-900 flex items-center justify-center text-sm shadow-sm" title={member.user?.username}>
-                                    {member.user?.emoji || '👤'}
-                                </div>
-                            ))}
-                            {isOwner && (
-                                <button onClick={() => setShowTravelersSheet(true)} className="w-8 h-8 rounded-full bg-white/5 border-2 border-dashed border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:border-white/30 transition-colors">
-                                    <Plus size={14} />
-                                </button>
-                            )}
-                        </div>
-                        {isOwner && (
+                {/* Hero Card */}
+                <div className="bg-gradient-to-br from-dark-800 via-dark-800 to-dark-900 rounded-[28px] border border-white/5 overflow-hidden shadow-2xl shadow-black/40">
+
+                    {/* Main Info Section */}
+                    <div className="p-5 md:p-6">
+                        <div className="flex items-start gap-4">
+                            {/* Emoji Voyage - Cliquable pour changer */}
                             <button
-                                onClick={() => setShowEmojiPicker(true)}
-                                className="w-10 h-10 rounded-xl bg-dark-800 border border-white/10 flex items-center justify-center text-2xl hover:border-brand-500/50 transition-colors"
+                                onClick={() => isOwner && setShowEmojiPicker(true)}
+                                className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-dark-900/80 border border-white/5 flex items-center justify-center text-3xl md:text-4xl shrink-0 shadow-inner transition-all ${isOwner ? 'hover:scale-105 hover:border-brand-500/30 cursor-pointer' : 'cursor-default'}`}
+                                title={isOwner ? "Changer l'emoji" : undefined}
                             >
                                 {tripEmoji}
                             </button>
-                        )}
+
+                            {/* Titre + Status + Meta */}
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <h1 className="text-xl md:text-2xl font-black tracking-tight truncate">{trip.title}</h1>
+                                    <span className={`shrink-0 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${allDaysLocked ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-orange-500/10 text-orange-400 border-orange-500/20'}`}>
+                                        {allDaysLocked ? 'Prêt' : 'En cours'}
+                                    </span>
+                                </div>
+
+                                {/* Meta Grid - Responsive */}
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px] font-bold text-gray-400">
+                                    <span className="flex items-center gap-1.5">
+                                        <MapPin size={11} className="text-brand-500/70" />
+                                        <span className="truncate">{trip.destination_country}</span>
+                                    </span>
+                                    <span className="flex items-center gap-1.5">
+                                        <Calendar size={11} className="text-brand-500/70" />
+                                        {trip.start_date ? new Date(trip.start_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : ''} • {trip.duration_days}j
+                                    </span>
+                                    {trip.preferences?.budget && (
+                                        <span className="flex items-center gap-1.5">
+                                            <Wallet size={11} className="text-brand-500/70" />
+                                            <span className="capitalize">{trip.preferences.budget}</span>
+                                        </span>
+                                    )}
+                                    {trip.preferences?.rhythm && (
+                                        <span className="flex items-center gap-1.5">
+                                            <Zap size={11} className="text-brand-500/70" />
+                                            <span className="capitalize">{trip.preferences.rhythm}</span>
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Voyageurs Section */}
+                    <div className="px-5 md:px-6 py-4 border-t border-white/5 bg-white/[0.015]">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase tracking-[0.15em] text-gray-500 flex items-center gap-2">
+                                <Users size={12} className="text-gray-600" />
+                                Voyageurs ({members.length})
+                            </span>
+                            <div className="flex items-center">
+                                {members.slice(0, 5).map((member, idx) => (
+                                    <div
+                                        key={member.id}
+                                        className="w-9 h-9 rounded-full bg-dark-700 border-2 border-dark-800 flex items-center justify-center text-lg shadow-sm hover:scale-110 hover:z-10 transition-transform cursor-default"
+                                        style={{ marginLeft: idx === 0 ? 0 : -8 }}
+                                        title={member.user?.username || 'Voyageur'}
+                                    >
+                                        {member.user?.emoji || '👤'}
+                                    </div>
+                                ))}
+                                {members.length > 5 && (
+                                    <div
+                                        className="w-9 h-9 rounded-full bg-dark-600 border-2 border-dark-800 flex items-center justify-center text-[10px] font-black text-gray-400"
+                                        style={{ marginLeft: -8 }}
+                                    >
+                                        +{members.length - 5}
+                                    </div>
+                                )}
+                                {(isOwner || canEditGlobal) && (
+                                    <button
+                                        onClick={() => setShowTravelersSheet(true)}
+                                        className="w-9 h-9 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center text-gray-500 hover:border-brand-500 hover:text-brand-500 hover:bg-brand-500/5 transition-all ml-2"
+                                        title="Inviter des voyageurs"
+                                    >
+                                        <Plus size={16} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Switch Intégré */}
+                    <div className="px-3 py-3 bg-dark-900/60 border-t border-white/5">
+                        <div className="flex justify-center">
+                            <div className="inline-flex bg-dark-800/80 p-1 rounded-full border border-white/5">
+                                {[
+                                    { id: 'itineraire', label: 'Itinéraire', icon: <MapIcon size={13} />, validated: allDaysLocked },
+                                    { id: 'preparation', label: 'Préparation', icon: <ClipboardList size={13} />, validated: isPreparationValidated },
+                                    { id: 'carnet', label: 'Carnet', icon: <Compass size={13} />, validated: false }
+                                ].map(tab => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id as any)}
+                                        className={`relative flex items-center gap-1.5 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all ${activeTab === tab.id ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/25' : 'text-gray-500 hover:text-white'}`}
+                                    >
+                                        {tab.icon}
+                                        <span className="hidden sm:inline">{tab.label}</span>
+                                        <span className="sm:hidden">{tab.label.slice(0, 4)}</span>
+                                        {tab.validated && (
+                                            <div className="absolute -top-0.5 -right-0.5 bg-green-500 text-white w-3.5 h-3.5 rounded-full flex items-center justify-center border-2 border-dark-800">
+                                                <Check size={7} strokeWidth={4} />
+                                            </div>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </header>
 
-            {/* Smart Switch Tabs */}
-            <div className="sticky top-20 z-40 flex justify-center pb-8 px-4 pointer-events-none">
-                <div className="bg-dark-800/80 backdrop-blur-md p-1.5 rounded-full border border-white/5 inline-flex pointer-events-auto shadow-2xl shadow-black/50">
-                    {[
-                        { id: 'itineraire', label: 'Itinéraire', icon: <MapIcon size={14} />, validated: allDaysLocked },
-                        { id: 'preparation', label: 'Préparation', icon: <ClipboardList size={14} />, validated: isPreparationValidated },
-                        { id: 'carnet', label: 'Carnet', icon: <Compass size={14} />, validated: false }
-                    ].map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id as any)}
-                            className={`relative flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${activeTab === tab.id ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/20' : 'text-gray-400 hover:text-white'}`}
-                        >
-                            {tab.icon}
-                            {tab.label}
-                            {tab.validated && (
-                                <div className="absolute -top-1 -right-1 bg-green-500 text-white w-4 h-4 rounded-full flex items-center justify-center border-2 border-dark-800">
-                                    <Check size={8} strokeWidth={4} />
-                                </div>
-                            )}
-                        </button>
-                    ))}
-                </div>
-            </div>
 
             {/* Day Selector (Itinerary Only) */}
             {activeTab === 'itineraire' && (
-                <div className="max-w-7xl mx-auto px-4 mb-8">
+                <div className="max-w-4xl mx-auto px-4 mt-6 mb-6">
                     <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-2">
                         {days.map((day) => (
                             <button
