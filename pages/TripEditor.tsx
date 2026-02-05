@@ -423,9 +423,9 @@ const TripEditor: React.FC = () => {
                 (payload) => {
                     const updatedDay = payload.new as TripDay;
                     setDays(prev => prev.map(d => d.id === updatedDay.id ? { ...d, ...updatedDay } : d));
-                    if (currentDay && currentDay.id === updatedDay.id) {
-                        setCurrentDay(prev => prev ? { ...prev, ...updatedDay } : null);
-                    }
+
+                    // Functional update to avoid stale closure on currentDay
+                    setCurrentDay(prev => (prev && prev.id === updatedDay.id) ? { ...prev, ...updatedDay } : prev);
                 }
             )
             .subscribe();
@@ -433,7 +433,7 @@ const TripEditor: React.FC = () => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [tripId, currentDay?.id]);
+    }, [tripId]);
 
     const handleRequestLock = async () => {
         if (!currentDay || !user || !canEditGlobal) return;
@@ -701,7 +701,7 @@ const TripEditor: React.FC = () => {
     };
 
     const openEdit = (card: Card) => {
-        if (currentDay?.status === 'locked') return;
+
         // Calculer la durée initiale en minutes si les deux heures existent
         let initialDuration: number | 'custom' = 60; // Default to 60 minutes
         if (card.start_time && card.end_time) {
