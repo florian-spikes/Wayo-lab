@@ -410,22 +410,51 @@ const TripEditor: React.FC = () => {
     useEffect(() => {
         if (!tripId) return;
 
-        const channel = supabase
-            .channel('trip_days_locking')
+        const daysChannel = supabase
+            .channel('trip_days_realtime')
             .on(
                 'postgres_changes',
                 {
-                    event: 'UPDATE',
+                    event: '*',
                     schema: 'public',
                     table: 'trip_days',
                     filter: `trip_id=eq.${tripId}`
                 },
                 (payload) => {
-                    const updatedDay = payload.new as TripDay;
-                    setDays(prev => prev.map(d => d.id === updatedDay.id ? { ...d, ...updatedDay } : d));
+                    const eventType = payload.eventType;
+                    const newRecord = payload.new as TripDay;
+                    const oldRecord = payload.old as { id: string };
 
-                    // Functional update to avoid stale closure on currentDay
-                    setCurrentDay(prev => (prev && prev.id === updatedDay.id) ? { ...prev, ...updatedDay } : prev);
+                    if (eventType === 'INSERT') {
+                        setDays(prev => {
+                            if (prev.find(d => d.id === newRecord.id)) return prev;
+                            return [...prev, newRecord].sort((a, b) => a.day_index - b.day_index);
+                        });
+                    } else if (eventType === 'UPDATE') {
+                        setDays(prev => prev.map(d => d.id === newRecord.id ? { ...d, ...newRecord } : d).sort((a, b) => a.day_index - b.day_index));
+                        setCurrentDay(prev => (prev && prev.id === newRecord.id) ? { ...prev, ...newRecord } : prev);
+                    } else if (eventType === 'DELETE') {
+                        setDays(prev => prev.filter(d => d.id !== oldRecord.id));
+                        setCurrentDay(prev => (prev && prev.id === oldRecord.id) ? null : prev);
+                    }
+                }
+            )
+            .subscribe();
+
+        // Subscribe to Trip Details (Duration, End Date)
+        const tripChannel = supabase
+            .channel('trip_details_realtime')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'trips',
+                    filter: `id=eq.${tripId}`
+                },
+                (payload) => {
+                    const newTrip = payload.new as any;
+                    setTrip(prev => prev ? { ...prev, ...newTrip } : null);
                 }
             )
             .subscribe();
@@ -498,7 +527,9 @@ const TripEditor: React.FC = () => {
 
 
         return () => {
-            supabase.removeChannel(channel);
+            supabase.removeChannel(daysChannel);
+            supabase.removeChannel(tripChannel);
+            supabase.removeChannel(cardChannel);
         };
     }, [tripId]);
 
