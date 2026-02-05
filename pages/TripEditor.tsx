@@ -430,6 +430,73 @@ const TripEditor: React.FC = () => {
             )
             .subscribe();
 
+        // Subscribe to Changes on Cards
+        const cardChannel = supabase
+            .channel('trip_cards_realtime')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*', // Listen to all events: INSERT, UPDATE, DELETE
+                    schema: 'public',
+                    table: 'cards',
+                    filter: `trip_id=eq.${tripId}`
+                },
+                (payload) => {
+                    const eventType = payload.eventType;
+                    const newRecord = payload.new as Card;
+                    const oldRecord = payload.old as { id: string };
+
+                    // Only update if it pertains to the current day
+                    // We need to check day_id. For DELETE, we might not have the new record's day_id, 
+                    // but we can filter by ID existence in our current list.
+
+                    setCurrentDay(currentDay => {
+                        if (!currentDay) return null;
+
+                        // If the change is for another day, we might just ignore it for the Cards view,
+                        // BUT `trip_id` filter already catches all global changes.
+                        // Optimization: Check if card belongs to current day.
+
+                        setCards(prevCards => {
+                            // INSERT
+                            if (eventType === 'INSERT' && newRecord.day_id === currentDay.id) {
+                                // Check if already exists to prevent duplication
+                                if (prevCards.find(c => c.id === newRecord.id)) return prevCards;
+                                return [...prevCards, newRecord].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+                            }
+
+                            // UPDATE
+                            if (eventType === 'UPDATE') {
+                                // If card moved to another day (day_id changed) and was in our list -> Remove it
+                                if (newRecord.day_id !== currentDay.id && prevCards.find(c => c.id === newRecord.id)) {
+                                    return prevCards.filter(c => c.id !== newRecord.id);
+                                }
+                                // If card moved TO this day
+                                if (newRecord.day_id === currentDay.id) {
+                                    const exists = prevCards.find(c => c.id === newRecord.id);
+                                    if (exists) {
+                                        return prevCards.map(c => c.id === newRecord.id ? newRecord : c).sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+                                    } else {
+                                        return [...prevCards, newRecord].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+                                    }
+                                }
+                            }
+
+                            // DELETE
+                            if (eventType === 'DELETE') {
+                                return prevCards.filter(c => c.id !== oldRecord.id);
+                            }
+
+                            return prevCards;
+                        });
+
+                        return currentDay; // Return same state to avoiding re-render of this hook (hacky but valid for access)
+                    });
+                }
+            )
+            .subscribe();
+
+
         return () => {
             supabase.removeChannel(channel);
         };
