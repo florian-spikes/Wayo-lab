@@ -99,6 +99,8 @@ interface TripDay {
     date: string | null;
     title: string | null;
     status: 'draft' | 'locked';
+    edited_by?: string | null; // [NEW] UUID of the user currently editing
+    edited_at?: string | null; // [NEW] Timestamp of the lock
 }
 
 interface Card {
@@ -394,6 +396,189 @@ const TripEditor: React.FC = () => {
 
     const activeDayIndex = parseInt(dayIndex || '1');
 
+    const currentUserMember = members.find(m => m.user_id === user?.id);
+    const currentUserRole = currentUserMember?.role || 'viewer';
+    const isOwner = currentUserRole === 'owner';
+    const canEditGlobal = currentUserRole === 'owner' || currentUserRole === 'editor';
+
+    // Locking Logic
+    const isLockedBySomeoneElse = currentDay?.edited_by && currentDay.edited_by !== user?.id;
+    const isLockedByMe = currentDay?.edited_by === user?.id;
+    const editingUser = currentDay?.edited_by ? members.find(m => m.user_id === currentDay.edited_by)?.user : null;
+
+    // Realtime Subscription
+    useEffect(() => {
+        if (!tripId) return;
+
+        const channel = supabase
+            .channel('trip_days_locking')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'trip_days',
+                    filter: `trip_id=eq.${tripId}`
+                },
+                (payload) => {
+                    const updatedDay = payload.new as TripDay;
+                    setDays(prev => prev.map(d => d.id === updatedDay.id ? { ...d, ...updatedDay } : d));
+                    if (currentDay && currentDay.id === updatedDay.id) {
+                        setCurrentDay(prev => prev ? { ...prev, ...updatedDay } : null);
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [tripId, currentDay?.id]);
+
+    const handleRequestLock = async () => {
+        if (!currentDay || !user || !canEditGlobal) return;
+
+        try {
+            const { data: success, error } = await supabase.rpc('request_day_lock', { p_day_id: currentDay.id });
+
+            if (error) throw error;
+
+            if (success) {
+                // Optimistic update
+                const now = new Date().toISOString();
+                const updated = { ...currentDay, edited_by: user.id, edited_at: now };
+                setCurrentDay(updated);
+                setDays(prev => prev.map(d => d.id === updated.id ? { ...d, ...updated } : d));
+            } else {
+                alert("Cette journée est déjà en cours de modification par quelqu'un d'autre.");
+            }
+        } catch (err) {
+            console.error("Error requesting lock:", err);
+            alert("Impossible de passer en mode édition.");
+        }
+    };
+
+    const handleReleaseLock = async () => {
+        if (!currentDay || !user || !isLockedByMe) return;
+
+        try {
+            const { error } = await supabase.rpc('release_day_lock', { p_day_id: currentDay.id });
+
+            if (error) throw error;
+
+            // Optimistic update
+            const updated = { ...currentDay, edited_by: null, edited_at: null };
+            setCurrentDay(updated);
+            setDays(prev => prev.map(d => d.id === updated.id ? { ...d, ...updated } : d));
+            setEditingCard(null); // Close sidebar if open
+        } catch (err) {
+            console.error("Error releasing lock:", err);
+        }
+    };
+
+    const handleForceUnlock = async () => {
+        if (!currentDay || !isOwner) return;
+        if (!confirm("Voulez-vous forcer le déverrouillage ? Cela peut écraser le travail en cours de l'autre utilisateur.")) return;
+
+        try {
+            const { error } = await supabase.rpc('force_unlock_day_owner', { p_day_id: currentDay.id });
+            if (error) throw error;
+        } catch (err) {
+            console.error("Error forcing unlock:", err);
+        }
+    };
+
+
+    const handleUpdateDayTitle = async (newTitle: string) => {
+        if (!currentDay || !isLockedByMe) return; // STRICT CHECK
+
+        // Mise à jour optimiste de l'UI
+        setCurrentDay({ ...currentDay, title: newTitle });
+        setDays(prev => prev.map(d => d.id === currentDay.id ? { ...d, title: newTitle } : d));
+
+        const { error } = await supabase
+            .from('trip_days')
+            .update({ title: newTitle })
+            .eq('id', currentDay.id);
+
+        if (error) {
+            console.error("Error updating day title:", error);
+            // Optionnel : rollback en cas d'erreur
+        }
+    };
+
+    const handleDeleteDay = async () => {
+        // Must be owner or editor AND hold the lock (or day must be unlocked? logical ambiguity)
+        // Generally deleting a day is a big action. Let's restrict to global editors.
+        if (!canEditGlobal) return;
+
+        // ... rest of logic
+        if (days.length <= 1) {
+            setConfirmConfig({
+                isOpen: true,
+                title: "Action impossible",
+                message: "Vous ne pouvez pas supprimer la dernière journée d'un voyage.",
+                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
+                variant: 'warning'
+            });
+            return;
+        }
+
+        setConfirmConfig({
+            isOpen: true,
+            title: "Supprimer la journée ?",
+            message: `Êtes-vous sûr de vouloir supprimer la journée J${currentDay?.day_index} et toutes ses activités ? Cette action est irréversible.`,
+            variant: 'danger',
+            onConfirm: async () => {
+                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+                // 1. Supprimer les cartes associées
+                if (!currentDay) return;
+                await supabase.from('cards').delete().eq('day_id', currentDay.id);
+
+                // 2. Supprimer la journée
+                const { error } = await supabase.from('trip_days').delete().eq('id', currentDay.id);
+
+                if (!error) {
+                    // 3. Réorganiser les index des jours restants
+                    const remainingDays = days.filter(d => d.id !== currentDay.id)
+                        .sort((a, b) => a.day_index - b.day_index);
+
+                    const updatedDays = await Promise.all(remainingDays.map(async (day, index) => {
+                        const newIndex = index + 1;
+                        let newDate = null;
+                        if (trip?.start_date) {
+                            const d = new Date(trip.start_date);
+                            d.setDate(d.getDate() + index);
+                            newDate = d.toISOString().split('T')[0];
+                        }
+
+                        if (day.day_index !== newIndex || day.date !== newDate) {
+                            await supabase.from('trip_days')
+                                .update({ day_index: newIndex, date: newDate })
+                                .eq('id', day.id);
+                            return { ...day, day_index: newIndex, date: newDate };
+                        }
+                        return day;
+                    }));
+
+                    // 4. Mettre à jour le voyage (durée et date de fin)
+                    const newDuration = updatedDays.length;
+                    const newEndDate = updatedDays[updatedDays.length - 1]?.date || trip?.start_date;
+
+                    await supabase.from('trips')
+                        .update({ duration_days: newDuration, end_date: newEndDate })
+                        .eq('id', tripId);
+
+                    setTrip(prev => prev ? { ...prev, duration_days: newDuration, end_date: newEndDate } : null);
+                    setDays(updatedDays);
+
+                    // 5. Rediriger vers le premier jour
+                    navigate(`/trips/${tripId}/day/1`);
+                }
+            }
+        });
+    };
+
     const sensors = useSensors(
         useSensor(PointerSensor, {
             activationConstraint: {
@@ -472,89 +657,7 @@ const TripEditor: React.FC = () => {
         }
     };
 
-    const handleUpdateDayTitle = async (newTitle: string) => {
-        if (!currentDay) return;
 
-        // Mise à jour optimiste de l'UI
-        setCurrentDay({ ...currentDay, title: newTitle });
-        setDays(prev => prev.map(d => d.id === currentDay.id ? { ...d, title: newTitle } : d));
-
-        const { error } = await supabase
-            .from('trip_days')
-            .update({ title: newTitle })
-            .eq('id', currentDay.id);
-
-        if (error) {
-            console.error("Error updating day title:", error);
-            // Optionnel : rollback en cas d'erreur
-        }
-    };
-
-    const handleDeleteDay = async () => {
-        if (days.length <= 1) {
-            setConfirmConfig({
-                isOpen: true,
-                title: "Action impossible",
-                message: "Vous ne pouvez pas supprimer la dernière journée d'un voyage.",
-                onConfirm: () => setConfirmConfig(prev => ({ ...prev, isOpen: false })),
-                variant: 'warning'
-            });
-            return;
-        }
-
-        setConfirmConfig({
-            isOpen: true,
-            title: "Supprimer la journée ?",
-            message: `Êtes-vous sûr de vouloir supprimer la journée J${currentDay.day_index} et toutes ses activités ? Cette action est irréversible.`,
-            variant: 'danger',
-            onConfirm: async () => {
-                setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-                // 1. Supprimer les cartes associées
-                await supabase.from('cards').delete().eq('day_id', currentDay.id);
-
-                // 2. Supprimer la journée
-                const { error } = await supabase.from('trip_days').delete().eq('id', currentDay.id);
-
-                if (!error) {
-                    // 3. Réorganiser les index des jours restants
-                    const remainingDays = days.filter(d => d.id !== currentDay.id)
-                        .sort((a, b) => a.day_index - b.day_index);
-
-                    const updatedDays = await Promise.all(remainingDays.map(async (day, index) => {
-                        const newIndex = index + 1;
-                        let newDate = null;
-                        if (trip?.start_date) {
-                            const d = new Date(trip.start_date);
-                            d.setDate(d.getDate() + index);
-                            newDate = d.toISOString().split('T')[0];
-                        }
-
-                        if (day.day_index !== newIndex || day.date !== newDate) {
-                            await supabase.from('trip_days')
-                                .update({ day_index: newIndex, date: newDate })
-                                .eq('id', day.id);
-                            return { ...day, day_index: newIndex, date: newDate };
-                        }
-                        return day;
-                    }));
-
-                    // 4. Mettre à jour le voyage (durée et date de fin)
-                    const newDuration = updatedDays.length;
-                    const newEndDate = updatedDays[updatedDays.length - 1]?.date || trip?.start_date;
-
-                    await supabase.from('trips')
-                        .update({ duration_days: newDuration, end_date: newEndDate })
-                        .eq('id', tripId);
-
-                    setTrip(prev => prev ? { ...prev, duration_days: newDuration, end_date: newEndDate } : null);
-                    setDays(updatedDays);
-
-                    // 5. Rediriger vers le premier jour
-                    navigate(`/trips/${tripId}/day/1`);
-                }
-            }
-        });
-    };
 
     const handleUpdateCard = async () => {
         if (!editingCard) return;
@@ -1147,14 +1250,16 @@ const TripEditor: React.FC = () => {
                         ))}
 
                         {/* Add Day Button */}
-                        <button
-                            onClick={handleAddDay}
-                            className="shrink-0 flex flex-col items-center justify-center w-14 h-16 rounded-2xl border-2 border-dashed border-white/10 text-gray-500 hover:border-brand-500/50 hover:text-brand-500 transition-all hover:bg-brand-500/5 group"
-                            title="Ajouter une journée"
-                        >
-                            <Plus size={20} className="group-hover:scale-110 transition-transform" />
-                            <span className="text-[8px] font-black uppercase mt-1">Nouveau</span>
-                        </button>
+                        {canEditGlobal && (
+                            <button
+                                onClick={handleAddDay}
+                                className="shrink-0 flex flex-col items-center justify-center w-14 h-16 rounded-2xl border-2 border-dashed border-white/10 text-gray-500 hover:border-brand-500/50 hover:text-brand-500 transition-all hover:bg-brand-500/5 group"
+                                title="Ajouter une journée"
+                            >
+                                <Plus size={20} className="group-hover:scale-110 transition-transform" />
+                                <span className="text-[8px] font-black uppercase mt-1">Nouveau</span>
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
@@ -1171,7 +1276,8 @@ const TripEditor: React.FC = () => {
                                         value={currentDay?.title || ''}
                                         placeholder={`Journée ${activeDayIndex}`}
                                         onChange={(e) => handleUpdateDayTitle(e.target.value)}
-                                        className="bg-transparent border-none text-2xl md:text-3xl font-black text-white/90 focus:ring-0 p-0 w-full placeholder:text-white/10 hover:text-white transition-colors cursor-text"
+                                        disabled={!isLockedByMe} // Only editable if locked by current user
+                                        className={`bg-transparent border-none text-2xl md:text-3xl font-black focus:ring-0 p-0 w-full transition-colors cursor-text ${isLockedByMe ? 'text-white/90 hover:text-white placeholder:text-white/10' : 'text-gray-500 cursor-not-allowed'}`}
                                     />
                                 </div>
                                 <div className="flex items-center gap-4 text-gray-500 font-bold tracking-tight text-sm">
@@ -1180,10 +1286,27 @@ const TripEditor: React.FC = () => {
                                         {formattedDate}
                                     </div>
                                     <div className="w-1 h-1 rounded-full bg-white/10"></div>
-                                    <div className="flex items-center gap-1.5 uppercase tracking-widest text-[10px]">
-                                        <Zap size={12} className="text-brand-500/50" />
-                                        {isDayLoading ? 'Chargement...' : `${cards.length} évènement${cards.length > 1 ? 's' : ''}`}
-                                    </div>
+                                    {isLockedBySomeoneElse ? (
+                                        <div className="flex items-center gap-1.5 uppercase tracking-widest text-[10px] text-orange-500 animate-pulse">
+                                            <Lock size={12} />
+                                            En cours d'édition par {editingUser?.username || 'un utilisateur'}
+                                            {isOwner && (
+                                                <button onClick={handleForceUnlock} className="ml-2 underline text-[9px] text-red-500 hover:text-red-400">
+                                                    Forcer
+                                                </button>
+                                            )}
+                                        </div>
+                                    ) : isLockedByMe ? (
+                                        <div className="flex items-center gap-1.5 uppercase tracking-widest text-[10px] text-green-500">
+                                            <CheckCircle2 size={12} />
+                                            Mode Édition activé
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-1.5 uppercase tracking-widest text-[10px]">
+                                            <Zap size={12} className="text-brand-500/50" />
+                                            {isDayLoading ? 'Chargement...' : `${cards.length} évènement${cards.length > 1 ? 's' : ''}`}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -1194,22 +1317,38 @@ const TripEditor: React.FC = () => {
                                     <span className="text-[10px] font-black uppercase tracking-widest text-brand-500">Utiliser Tori IA</span>
                                 </button>
 
-                                {/* Lock Button in Header */}
-                                <button
-                                    onClick={handleToggleLock}
-                                    className={`h-10 px-4 rounded-xl border flex items-center gap-2 transition-all active:scale-95 shadow-lg text-[10px] font-black uppercase tracking-widest ${currentDay?.status === 'locked' ? 'bg-orange-500 border-orange-600 text-white' : 'bg-dark-800 border-white/5 text-gray-400 hover:text-white'}`}
-                                >
-                                    {currentDay?.status === 'locked' ? <Lock size={14} /> : <Unlock size={14} />}
-                                    <span>{currentDay?.status === 'locked' ? 'Déverrouiller' : 'Valider'}</span>
-                                </button>
+                                {/* Modify / Save Button */}
+                                {canEditGlobal && (
+                                    isLockedByMe ? (
+                                        <button
+                                            onClick={handleReleaseLock}
+                                            className="h-10 px-4 rounded-xl border flex items-center gap-2 transition-all active:scale-95 shadow-lg text-[10px] font-black uppercase tracking-widest bg-green-500 border-green-600 text-white hover:bg-green-600"
+                                        >
+                                            <Save size={14} />
+                                            <span>Enregistrer</span>
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={handleRequestLock}
+                                            disabled={isLockedBySomeoneElse}
+                                            className={`h-10 px-4 rounded-xl border flex items-center gap-2 transition-all active:scale-95 shadow-lg text-[10px] font-black uppercase tracking-widest ${isLockedBySomeoneElse ? 'bg-dark-800 border-white/5 text-gray-600 cursor-not-allowed opacity-50' : 'bg-brand-500 border-brand-600 text-white hover:bg-brand-600'}`}
+                                        >
+                                            {isLockedBySomeoneElse ? <Lock size={14} /> : <CheckSquare size={14} />}
+                                            <span>{isLockedBySomeoneElse ? 'Verrouillé' : 'Modifier'}</span>
+                                        </button>
+                                    )
+                                )}
 
-                                <button
-                                    onClick={handleDeleteDay}
-                                    className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 hover:text-white hover:bg-red-500 hover:border-red-600 transition-all group scale-105"
-                                    title="Supprimer cette journée"
-                                >
-                                    <Trash2 size={16} className="group-hover:scale-110 transition-transform" />
-                                </button>
+                                {canEditGlobal && (
+                                    <button
+                                        onClick={handleDeleteDay}
+                                        disabled={!isLockedByMe} // Only delete if you hold the lock? Or maybe allowed if just EDITOR? Safe bet: must be in edit mode.
+                                        className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all group scale-105 ${!isLockedByMe ? 'bg-dark-800 border-white/5 text-gray-700 cursor-not-allowed' : 'bg-red-500/10 border-red-500/20 text-red-500 hover:text-white hover:bg-red-500 hover:border-red-600'}`}
+                                        title="Supprimer cette journée"
+                                    >
+                                        <Trash2 size={16} className={isLockedByMe ? "group-hover:scale-110 transition-transform" : ""} />
+                                    </button>
+                                )}
                             </div>
                         </div>
 
@@ -1222,15 +1361,18 @@ const TripEditor: React.FC = () => {
                                 </div>
                             ) : cards.length === 0 ? (
                                 <button
-                                    onClick={() => setShowAddSheet(true)}
-                                    className="ml-12 w-[calc(100%-3rem)] bg-dark-800/20 border-2 border-dashed border-white/5 rounded-[32px] py-16 flex flex-col items-center justify-center gap-4 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group"
+                                    onClick={() => isLockedByMe && setShowAddSheet(true)}
+                                    disabled={!isLockedByMe}
+                                    className={`ml-12 w-[calc(100%-3rem)] bg-dark-800/20 border-2 border-dashed border-white/5 rounded-[32px] py-16 flex flex-col items-center justify-center gap-4 transition-all group ${isLockedByMe ? 'hover:border-brand-500/30 hover:bg-brand-500/5 cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
                                 >
                                     <div className="w-16 h-16 rounded-2xl bg-dark-800 border border-white/10 flex items-center justify-center text-gray-500 group-hover:scale-110 group-hover:border-brand-500/30 group-hover:text-brand-500 transition-all">
                                         <Plus size={32} />
                                     </div>
                                     <div className="text-center">
                                         <p className="text-gray-500 font-bold mb-1">Rien de prévu pour ce jour.</p>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-500/50 group-hover:text-brand-500 transition-colors">Ajouter votre première étape</p>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-500/50 group-hover:text-brand-500 transition-colors">
+                                            {isLockedByMe ? 'Ajouter votre première étape' : 'Cliquez sur "Modifier" pour commencer'}
+                                        </p>
                                     </div>
                                 </button>
                             ) : (
@@ -1249,15 +1391,15 @@ const TripEditor: React.FC = () => {
                                                 <SortableCard
                                                     key={card.id}
                                                     card={card}
-                                                    isLocked={currentDay?.status === 'locked'}
-                                                    onEdit={() => openEdit(card)}
+                                                    isLocked={!isLockedByMe} // LOCKED if NOT locked by me (i.e. I'm not editing)
+                                                    onEdit={() => isLockedByMe && openEdit(card)} // Only allow open edit if I strictly hold lock
                                                     checklistCount={checklistItems.filter(i => i.card_id === card.id).length}
                                                 />
                                             ))}
                                         </SortableContext>
 
                                         {/* Add Activity Card at the End of Timeline */}
-                                        {currentDay?.status !== 'locked' && (
+                                        {isLockedByMe && (
                                             <button
                                                 onClick={() => setShowAddSheet(true)}
                                                 className="w-full ml-12 bg-dark-800/20 border-2 border-dashed border-white/5 rounded-[32px] p-8 flex flex-col items-center justify-center gap-4 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group"
@@ -1923,18 +2065,52 @@ const TripEditor: React.FC = () => {
                                 </h3>
                                 <div className="space-y-3">
                                     {members.map(member => (
-                                        <div key={member.id} className="flex items-center gap-4 bg-dark-800/50 p-3 rounded-2xl border border-white/5 group">
+                                        <div key={member.id} className="flex items-center gap-4 bg-dark-800/50 p-3 rounded-2xl border border-white/5 group relative overflow-visible z-10 hover:z-20">
                                             <div className="w-10 h-10 rounded-full bg-dark-700 overflow-hidden flex items-center justify-center shrink-0 border border-white/10 text-xl">
                                                 {member.user?.emoji || '👤'}
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="text-sm font-bold truncate">{member.user?.username || 'Utilisateur'}</div>
-                                                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
-                                                    {member.role === 'owner' ? 'Leader' : (member.role === 'editor' ? 'Éditeur' : 'Observateur')}
+                                                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center gap-2">
+                                                    {/* Role Selector */}
+                                                    {members.find(m => m.user_id === user?.id)?.role === 'owner' && member.role !== 'owner' ? (
+                                                        <select
+                                                            value={member.role}
+                                                            onChange={async (e) => {
+                                                                const newRole = e.target.value as 'editor' | 'viewer';
+                                                                // Optimistic Update
+                                                                setMembers(prev => prev.map(m => m.id === member.id ? { ...m, role: newRole } : m));
+
+                                                                const { error } = await supabase
+                                                                    .from('trip_members')
+                                                                    .update({ role: newRole })
+                                                                    .eq('id', member.id);
+
+                                                                if (error) {
+                                                                    console.error('Error updating role:', error);
+                                                                    // Revert if error (optional, could just refetch)
+                                                                    fetchMembers();
+                                                                }
+                                                            }}
+                                                            className="bg-transparent border-none p-0 text-[10px] uppercase font-bold text-brand-500 focus:ring-0 cursor-pointer hover:underline"
+                                                        >
+                                                            <option value="editor">Éditeur (Modifie)</option>
+                                                            <option value="viewer">Observateur (Voir)</option>
+                                                        </select>
+                                                    ) : (
+                                                        <span>{member.role === 'owner' ? 'Leader' : (member.role === 'editor' ? 'Éditeur' : 'Observateur')}</span>
+                                                    )}
                                                 </div>
                                             </div>
-                                            {member.role !== 'owner' && (
-                                                <button className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-500 transition-all">
+                                            {member.role !== 'owner' && members.find(m => m.user_id === user?.id)?.role === 'owner' && (
+                                                <button
+                                                    onClick={async () => {
+                                                        if (!confirm('Retirer ce membre ?')) return;
+                                                        const { error } = await supabase.from('trip_members').delete().eq('id', member.id);
+                                                        if (!error) setMembers(prev => prev.filter(m => m.id !== member.id));
+                                                    }}
+                                                    className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-500 transition-all"
+                                                >
                                                     <Trash2 size={14} />
                                                 </button>
                                             )}
