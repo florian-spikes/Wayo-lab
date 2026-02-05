@@ -1216,15 +1216,18 @@ const TripEditor: React.FC = () => {
                     <div className="flex flex-col md:flex-row items-center md:items-end gap-8 text-center md:text-left">
                         {/* Trip Icon / Emoji - Clickable */}
                         <div className="relative group">
-                            <div className="absolute inset-0 bg-brand-500/20 rounded-[40px] blur-2xl group-hover:blur-3xl transition-all duration-500"></div>
+                            {isOwner && <div className="absolute inset-0 bg-brand-500/20 rounded-[40px] blur-2xl group-hover:blur-3xl transition-all duration-500"></div>}
                             <button
-                                onClick={() => setShowEmojiPicker(true)}
-                                className="relative w-32 h-32 md:w-40 md:h-40 bg-dark-800 border border-white/10 rounded-[40px] flex items-center justify-center text-7xl md:text-8xl shadow-2xl transition-all hover:scale-105 hover:border-brand-500/50 duration-500 cursor-pointer active:scale-95 group"
+                                onClick={() => isOwner && setShowEmojiPicker(true)}
+                                disabled={!isOwner}
+                                className={`relative w-32 h-32 md:w-40 md:h-40 bg-dark-800 border border-white/10 rounded-[40px] flex items-center justify-center text-7xl md:text-8xl shadow-2xl transition-all duration-500 ${isOwner ? 'hover:scale-105 hover:border-brand-500/50 cursor-pointer active:scale-95' : 'cursor-default'}`}
                             >
                                 {tripEmoji}
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-[40px]">
-                                    <Smile size={32} className="text-white" />
-                                </div>
+                                {isOwner && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-[40px]">
+                                        <Smile size={32} className="text-white" />
+                                    </div>
+                                )}
                             </button>
                         </div>
 
@@ -1291,13 +1294,15 @@ const TripEditor: React.FC = () => {
                                     </div>
                                 ))}
 
-                                <button
-                                    onClick={() => setShowTravelersSheet(true)}
-                                    className="w-12 h-12 rounded-full bg-brand-500/10 border-2 border-dashed border-brand-500/30 flex items-center justify-center text-brand-500 hover:bg-brand-500 hover:text-white transition-all z-0 hover:z-10"
-                                    title="Gérer les voyageurs"
-                                >
-                                    <Plus size={20} />
-                                </button>
+                                {isOwner && (
+                                    <button
+                                        onClick={() => setShowTravelersSheet(true)}
+                                        className="w-12 h-12 rounded-full bg-brand-500/10 border-2 border-dashed border-brand-500/30 flex items-center justify-center text-brand-500 hover:bg-brand-500 hover:text-white transition-all z-0 hover:z-10"
+                                        title="Gérer les voyageurs"
+                                    >
+                                        <Plus size={20} />
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
