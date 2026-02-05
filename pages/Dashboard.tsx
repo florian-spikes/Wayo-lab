@@ -4,17 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import { Calendar, Map, Clock, Plus, ChevronRight, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-interface Trip {
-    id: string;
-    title: string;
-    start_date: string | null;
-    end_date: string | null;
-    duration_days: number | null;
-    preferences?: {
-        emoji?: string;
-    };
-}
+import { Trip, TripMember } from '../types';
 
 const Dashboard: React.FC = () => {
     const { user, profile, signOut } = useAuth();
@@ -25,26 +15,68 @@ const Dashboard: React.FC = () => {
     useEffect(() => {
         if (!user) return;
 
-        const fetchTrips = async () => {
-            // Utiliser le RPC pour récupérer tous les voyages (créés + rejoints)
-            const { data, error } = await supabase.rpc('get_user_trips');
+        const fetchTripsAndMembers = async () => {
+            // 1. Fetch Trips (using RPC or fallback)
+            let loadedTrips: Trip[] = [];
 
-            if (error) {
-                console.error('Erreur lors du chargement des voyages :', error);
-                // Fallback en cas d'erreur (ex: RPC pas encore dispo)
+            const { data: rpcData, error: rpcError } = await supabase.rpc('get_user_trips');
+
+            if (!rpcError && rpcData) {
+                loadedTrips = rpcData;
+            } else {
+                console.error('Erreur RPC, fallback standard', rpcError);
                 const { data: fallbackData } = await supabase
                     .from('trips')
                     .select('*')
                     .eq('user_id', user.id)
                     .order('created_at', { ascending: false });
-                setTrips(fallbackData || []);
-            } else {
-                setTrips(data || []);
+                loadedTrips = (fallbackData || []) as any; // Cast as Trip for now
             }
+
+            if (loadedTrips.length === 0) {
+                setTrips([]);
+                setLoading(false);
+                return;
+            }
+
+            // 2. Fetch Members for ALL loaded trips
+            const tripIds = loadedTrips.map(t => t.id);
+            const { data: membersData } = await supabase
+                .from('trip_members')
+                .select('trip_id, user_id, role')
+                .in('trip_id', tripIds);
+
+            // 3. Fetch Profiles for those members
+            const userIds = membersData ? Array.from(new Set(membersData.map(m => m.user_id))) : [];
+            const { data: profilesData } = await supabase
+                .from('profiles')
+                .select('id, username, emoji')
+                .in('id', userIds);
+
+            // 4. Enrich Trips with Members
+            const enrichedTrips = loadedTrips.map(trip => {
+                const tripMembersRaw = membersData?.filter(m => m.trip_id === trip.id) || [];
+
+                // Map to TripMember with nested User Profile
+                const membersWithProfile: TripMember[] = tripMembersRaw.map(tm => ({
+                    id: `${tm.trip_id}-${tm.user_id}`, // Fake ID sufficient for display if actual not needed
+                    trip_id: tm.trip_id,
+                    user_id: tm.user_id,
+                    role: tm.role,
+                    user: profilesData?.find(p => p.id === tm.user_id)
+                }));
+
+                return {
+                    ...trip,
+                    members: membersWithProfile
+                };
+            });
+
+            setTrips(enrichedTrips);
             setLoading(false);
         };
 
-        fetchTrips();
+        fetchTripsAndMembers();
     }, [user]);
 
     const handleSignOut = async () => {
@@ -166,14 +198,26 @@ const Dashboard: React.FC = () => {
                                             {trip.preferences?.emoji || '🚩'}
                                         </div>
                                         <div className="flex -space-x-2">
-                                            {['👤', '🦊', '🐱'].map((emoji, i) => (
-                                                <div key={i} className="w-8 h-8 rounded-full bg-dark-900 border-2 border-dark-800 flex items-center justify-center text-sm shadow-lg">
-                                                    {emoji}
+                                            {/* Actual Members Display */}
+                                            {trip.members && trip.members.length > 0 ? (
+                                                trip.members.slice(0, 3).map((member) => (
+                                                    <div key={member.user_id} className="w-8 h-8 rounded-full bg-dark-900 border-2 border-dark-800 flex items-center justify-center text-sm shadow-lg z-10 hover:z-20 relative hover:-translate-y-1 transition-transform" title={member.user?.username || 'Voyageur'}>
+                                                        {member.user?.emoji || '👤'}
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                // Fallback if no members loaded yet
+                                                <div className="w-8 h-8 rounded-full bg-dark-900 border-2 border-dark-800 flex items-center justify-center text-sm shadow-lg">
+                                                    👤
                                                 </div>
-                                            ))}
-                                            <div className="w-8 h-8 rounded-full bg-brand-500/10 border-2 border-dark-800 flex items-center justify-center text-[10px] font-black text-brand-500 shadow-lg">
-                                                +1
-                                            </div>
+                                            )}
+
+                                            {/* Counter */}
+                                            {trip.members && trip.members.length > 3 && (
+                                                <div className="w-8 h-8 rounded-full bg-brand-500/10 border-2 border-dark-800 flex items-center justify-center text-[10px] font-black text-brand-500 shadow-lg z-0">
+                                                    +{trip.members.length - 3}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
@@ -210,3 +254,4 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
+
