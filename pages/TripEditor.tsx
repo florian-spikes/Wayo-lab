@@ -147,6 +147,7 @@ interface ChecklistItem {
     card_id: string;
     is_completed: boolean;
     created_at: string;
+    trip_id?: string; // [FIX] Added for realtime client-side filtering
     checklist_data?: {
         label: string;
     };
@@ -1437,11 +1438,11 @@ const TripEditor: React.FC = () => {
                                     key={day.id}
                                     onClick={() => navigate(`/trips/${tripId}/day/${day.day_index}`)}
                                     className={`shrink-0 flex flex-col items-center justify-center w-12 h-14 rounded-xl transition-all relative ${isActive && isBeingEdited
-                                        ? 'bg-white text-dark-900 border-2 border-dashed border-brand-500 shadow-lg'
+                                        ? 'bg-white text-dark-900 border border-dashed border-brand-500 shadow-lg'
                                         : isActive
                                             ? 'bg-white text-dark-900 border border-white shadow-lg'
                                             : isBeingEdited
-                                                ? 'bg-dark-800/50 border-2 border-dashed border-brand-500/60 text-brand-400'
+                                                ? 'bg-dark-800/50 border border-dashed border-brand-500/60 text-brand-400'
                                                 : 'bg-dark-800/50 border border-white/5 text-gray-500 hover:bg-dark-800 hover:text-gray-300'
                                         }`}
                                 >
@@ -1473,9 +1474,9 @@ const TripEditor: React.FC = () => {
                     {/* Container Principal Itinéraire - Design cohérent avec Hero Card */}
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
                         <div className={`bg-gradient-to-br from-dark-800 via-dark-800 to-dark-900 rounded-[28px] overflow-hidden shadow-2xl shadow-black/40 transition-all ${isLockedByMe
-                            ? 'border-2 border-dashed border-brand-500/60'
+                            ? 'border border-dashed border-brand-500/60'
                             : isLockedBySomeoneElse
-                                ? 'border-2 border-dashed border-orange-500/40'
+                                ? 'border border-dashed border-orange-500/40'
                                 : 'border border-white/5'
                             }`}>
 
