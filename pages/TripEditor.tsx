@@ -592,13 +592,13 @@ const TripEditor: React.FC = () => {
                 // Optimistic update
                 const now = new Date().toISOString();
                 // Auto-uncheck si la journée était validée
-                const updated = { ...currentDay, edited_by: user.id, edited_at: now, status: 'open' as const };
+                const updated = { ...currentDay, edited_by: user.id, edited_at: now, status: 'draft' as const };
                 setCurrentDay(updated);
                 setDays(prev => prev.map(d => d.id === updated.id ? { ...d, ...updated } : d));
 
                 // Persister le changement de status si était locké
                 if (currentDay.status === 'locked') {
-                    await supabase.from('trip_days').update({ status: 'open' }).eq('id', currentDay.id);
+                    await supabase.from('trip_days').update({ status: 'draft' }).eq('id', currentDay.id);
                 }
             } else {
                 alert("Cette journée est déjà en cours de modification par quelqu'un d'autre.");
@@ -1513,7 +1513,7 @@ const TripEditor: React.FC = () => {
                                                 <button
                                                     onClick={async () => {
                                                         if (!currentDay) return;
-                                                        const newStatus = currentDay.status === 'locked' ? 'open' : 'locked';
+                                                        const newStatus = currentDay.status === 'locked' ? 'draft' : 'locked';
                                                         const { error } = await supabase
                                                             .from('trip_days')
                                                             .update({ status: newStatus })
