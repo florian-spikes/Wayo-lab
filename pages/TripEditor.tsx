@@ -591,9 +591,15 @@ const TripEditor: React.FC = () => {
             if (success) {
                 // Optimistic update
                 const now = new Date().toISOString();
-                const updated = { ...currentDay, edited_by: user.id, edited_at: now };
+                // Auto-uncheck si la journée était validée
+                const updated = { ...currentDay, edited_by: user.id, edited_at: now, status: 'open' as const };
                 setCurrentDay(updated);
                 setDays(prev => prev.map(d => d.id === updated.id ? { ...d, ...updated } : d));
+
+                // Persister le changement de status si était locké
+                if (currentDay.status === 'locked') {
+                    await supabase.from('trip_days').update({ status: 'open' }).eq('id', currentDay.id);
+                }
             } else {
                 alert("Cette journée est déjà en cours de modification par quelqu'un d'autre.");
             }
@@ -1385,11 +1391,13 @@ const TripEditor: React.FC = () => {
                                 <button
                                     key={day.id}
                                     onClick={() => navigate(`/trips/${tripId}/day/${day.day_index}`)}
-                                    className={`shrink-0 flex flex-col items-center justify-center w-12 h-14 rounded-xl transition-all relative ${isActive
-                                        ? 'bg-white text-dark-900 border-white shadow-lg border'
-                                        : isBeingEdited
-                                            ? 'bg-dark-800/50 border-2 border-dashed border-brand-500/60 text-brand-400'
-                                            : 'bg-dark-800/50 border border-white/5 text-gray-500 hover:bg-dark-800 hover:text-gray-300'
+                                    className={`shrink-0 flex flex-col items-center justify-center w-12 h-14 rounded-xl transition-all relative ${isActive && isBeingEdited
+                                        ? 'bg-white text-dark-900 border-2 border-dashed border-brand-500 shadow-lg'
+                                        : isActive
+                                            ? 'bg-white text-dark-900 border border-white shadow-lg'
+                                            : isBeingEdited
+                                                ? 'bg-dark-800/50 border-2 border-dashed border-brand-500/60 text-brand-400'
+                                                : 'bg-dark-800/50 border border-white/5 text-gray-500 hover:bg-dark-800 hover:text-gray-300'
                                         }`}
                                 >
                                     <span className="text-[9px] font-black uppercase opacity-60">J{day.day_index}</span>
@@ -1491,8 +1499,8 @@ const TripEditor: React.FC = () => {
                                             )
                                         )}
 
-                                        {/* Validate Day Button */}
-                                        {canEditGlobal && !isLockedBySomeoneElse && (
+                                        {/* Validate Day Button - visible seulement hors modification */}
+                                        {canEditGlobal && !isLockedByMe && !isLockedBySomeoneElse && (
                                             <button
                                                 onClick={async () => {
                                                     if (!currentDay) return;
@@ -1506,9 +1514,9 @@ const TripEditor: React.FC = () => {
                                                         setDays(prev => prev.map(d => d.id === currentDay.id ? { ...d, status: newStatus } : d));
                                                     }
                                                 }}
-                                                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all group ${currentDay?.status === 'locked'
-                                                    ? 'bg-green-500 text-white hover:bg-green-600'
-                                                    : 'bg-dark-700 border border-white/10 text-gray-500 hover:border-green-500/50 hover:text-green-400'
+                                                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all group border ${currentDay?.status === 'locked'
+                                                        ? 'border-green-500 bg-green-500/10 text-green-400 hover:bg-green-500/20'
+                                                        : 'border-white/10 bg-dark-700 text-gray-500 hover:border-green-500/50 hover:text-green-400'
                                                     }`}
                                                 title={currentDay?.status === 'locked' ? 'Journée validée' : 'Valider la journée'}
                                             >
@@ -1516,14 +1524,14 @@ const TripEditor: React.FC = () => {
                                             </button>
                                         )}
 
-                                        {canEditGlobal && (
+                                        {/* Delete Day Button - visible seulement en modification */}
+                                        {canEditGlobal && isLockedByMe && (
                                             <button
                                                 onClick={handleDeleteDay}
-                                                disabled={!isLockedByMe}
-                                                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all group ${!isLockedByMe ? 'bg-dark-700 text-gray-600 cursor-not-allowed' : 'bg-red-500/10 text-red-400 hover:text-white hover:bg-red-500'}`}
+                                                className="w-9 h-9 flex items-center justify-center rounded-xl transition-all group bg-red-500/10 text-red-400 hover:text-white hover:bg-red-500"
                                                 title="Supprimer cette journée"
                                             >
-                                                <Trash2 size={14} className={isLockedByMe ? "group-hover:scale-110 transition-transform" : ""} />
+                                                <Trash2 size={14} className="group-hover:scale-110 transition-transform" />
                                             </button>
                                         )}
                                     </div>
