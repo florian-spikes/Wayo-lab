@@ -1077,9 +1077,7 @@ const TripEditor: React.FC = () => {
 
     const persistOrder = async (newCards: Card[]) => {
         const updates = newCards.map((card, index) => ({
-            id: card.id,
-            trip_id: card.trip_id,  // [FIX] Required for RLS/Constraints
-            day_id: card.day_id,    // [FIX] Required for RLS/Constraints
+            ...card,
             order_index: index,
             updated_at: new Date().toISOString()
         }));
@@ -1104,11 +1102,14 @@ const TripEditor: React.FC = () => {
 
             const reorderedCards = arrayMove(cards, oldIndex, newIndex) as Card[];
 
+            // [FIX] Update local indices immediately to prevent jitter with realtime updates
+            const reorderedWithIndices = reorderedCards.map((c, i) => ({ ...c, order_index: i }));
+
             // Optimistic UI
-            setCards(reorderedCards);
+            setCards(reorderedWithIndices);
 
             // Real persistence
-            persistOrder(reorderedCards);
+            persistOrder(reorderedWithIndices);
         }
     };
 
