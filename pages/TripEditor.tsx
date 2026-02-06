@@ -402,8 +402,9 @@ const TripEditor: React.FC = () => {
 
         if (query.length > 2) {
             try {
+                // Improved Search: French language, limit 10, more types (poi, locality, place, etc.)
                 const response = await fetch(
-                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&types=poi,address`
+                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&language=fr&limit=10&types=poi,address,place,locality,district,neighborhood`
                 );
                 const data = await response.json();
                 if (data.features) {
@@ -421,10 +422,36 @@ const TripEditor: React.FC = () => {
 
     const selectAddress = (feature: any) => {
         if (!activeAddressField) return;
-        setEditData(prev => ({
-            ...prev,
-            [activeAddressField === 'start' ? 'location_text' : 'end_location_text']: feature.place_name
-        }));
+
+        setEditData(prev => {
+            const newState = {
+                ...prev,
+                [activeAddressField === 'start' ? 'location_text' : 'end_location_text']: feature.place_name
+            };
+
+            // AUTO-TITLE LOGIC for Transport Events
+            if (prev.type && prev.type.toLowerCase() === 'transport') {
+                const shortName = feature.text || feature.place_name.split(',')[0];
+
+                // Get the OTHER location's short name (heuristic: first part of comma-separated string)
+                let startShort = activeAddressField === 'start'
+                    ? shortName
+                    : (newState.location_text ? newState.location_text.split(',')[0] : '...');
+
+                let endShort = activeAddressField === 'end'
+                    ? shortName
+                    : (newState.end_location_text ? newState.end_location_text.split(',')[0] : '...');
+
+                // Clean up "..." if fields are empty
+                if (startShort === '...') startShort = '?';
+                if (endShort === '...') endShort = '?';
+
+                newState.title = `${startShort} ➔ ${endShort}`;
+            }
+
+            return newState;
+        });
+
         setShowAddressSuggestions(false);
     };
 
