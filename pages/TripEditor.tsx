@@ -115,6 +115,7 @@ interface Card {
     start_time: string | null;
     end_time: string | null;
     location_text: string | null;
+    website_url?: string | null;
 }
 
 // Catégories d'emojis pour le voyage
@@ -124,9 +125,12 @@ const tripEmojiCategories = [
     { name: 'Nature', emojis: ['🌲', '🌵', '🌻', '🍃', '🌊', '❄️', '🔥', '⭐', '🌙', '☀️', '🌈', '🌩️'] }
 ];
 
+// --- Constants ---
+const MAPBOX_TOKEN = 'pk.eyJ1IjoiaGFhcnJwIiwiYSI6ImNtbGFwN3A3dzBjaTQzZHNnaWgxcXIxbG8ifQ.B_Mc8QMKmVLpprv6pRJqIQ';
+
 // --- Liste des types d'évènements avec leurs icônes ---
 const EVENT_TYPES = [
-    { id: 'activité', icon: <ActivityIcon size={24} />, label: 'Activité', color: 'text-brand-500' },
+    { id: 'Activité', icon: <ActivityIcon size={24} />, label: 'Activité', color: 'text-brand-500' },
     { id: 'repas', icon: <Utensils size={24} />, label: 'Repas', color: 'text-orange-500' },
     { id: 'transport', icon: <Car size={24} />, label: 'Transport', color: 'text-blue-500' },
     { id: 'hébergement', icon: <Hotel size={24} />, label: 'Hébergement', color: 'text-indigo-500' },
@@ -356,6 +360,7 @@ const TripEditor: React.FC = () => {
         title: string;
         description: string;
         location_text: string;
+        website_url: string;
         start_time: string;
         end_time: string;
         duration: number | 'custom';
@@ -364,11 +369,43 @@ const TripEditor: React.FC = () => {
         title: '',
         description: '',
         location_text: '',
+        website_url: '',
         start_time: '',
         end_time: '',
         duration: 60,
-        type: 'activité'
+        type: 'Activité'
     });
+
+    // Mapbox Autocomplete State
+    const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
+    const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+
+    const handleAddressSearch = async (query: string) => {
+        setEditData(prev => ({ ...prev, location_text: query }));
+
+        if (query.length > 2) {
+            try {
+                const response = await fetch(
+                    `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&types=poi,address`
+                );
+                const data = await response.json();
+                if (data.features) {
+                    setAddressSuggestions(data.features);
+                    setShowAddressSuggestions(true);
+                }
+            } catch (error) {
+                console.error("Mapbox error:", error);
+            }
+        } else {
+            setAddressSuggestions([]);
+            setShowAddressSuggestions(false);
+        }
+    };
+
+    const selectAddress = (feature: any) => {
+        setEditData(prev => ({ ...prev, location_text: feature.place_name }));
+        setShowAddressSuggestions(false);
+    };
 
     const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
     const [allTripCards, setAllTripCards] = useState<Record<string, string>>({});
@@ -860,6 +897,7 @@ const TripEditor: React.FC = () => {
                 title: editData.title,
                 description: editData.description,
                 location_text: editData.location_text,
+                website_url: editData.website_url || null,
                 start_time: editData.start_time || null,
                 end_time: editData.end_time || null,
                 type: editData.type,
@@ -911,6 +949,7 @@ const TripEditor: React.FC = () => {
             title: card.title,
             description: card.description || '',
             location_text: card.location_text || '',
+            website_url: card.website_url || '',
             start_time: card.start_time?.slice(0, 5) || '',
             end_time: card.end_time?.slice(0, 5) || '',
             duration: initialDuration,
@@ -2170,17 +2209,51 @@ const TripEditor: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Lieu</label>
-                                        <div className="relative">
-                                            <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
-                                            <input
-                                                type="text"
-                                                placeholder="Ex: Musée du Louvre"
-                                                value={editData.location_text}
-                                                onChange={e => setEditData({ ...editData, location_text: e.target.value })}
-                                                className="w-full bg-dark-800 border border-white/5 rounded-2xl h-[50px] pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
-                                            />
+                                    <div className="space-y-4">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Lieu</label>
+                                            <div className="relative">
+                                                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Ex: Musée du Louvre"
+                                                    value={editData.location_text}
+                                                    onChange={e => handleAddressSearch(e.target.value)}
+                                                    onFocus={() => editData.location_text.length > 2 && setShowAddressSuggestions(true)}
+                                                    className="w-full bg-dark-800 border border-white/5 rounded-2xl h-[50px] pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
+                                                />
+                                                {/* Mapbox Suggestions Dropdown */}
+                                                {showAddressSuggestions && addressSuggestions.length > 0 && (
+                                                    <div className="absolute top-full left-0 right-0 mt-2 bg-dark-900 border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden max-h-48 overflow-y-auto">
+                                                        {addressSuggestions.map((feature: any) => (
+                                                            <button
+                                                                key={feature.id}
+                                                                onClick={() => selectAddress(feature)}
+                                                                className="w-full text-left px-4 py-3 hover:bg-white/5 text-sm font-medium border-b border-white/5 last:border-0 transition-colors flex items-center gap-2"
+                                                            >
+                                                                <MapPin size={12} className="text-brand-500 shrink-0" />
+                                                                <span className="truncate">{feature.place_name}</span>
+                                                            </button>
+                                                        ))}
+                                                        {/* Backdrop to close */}
+                                                        <div className="fixed inset-0 z-[-1]" onClick={() => setShowAddressSuggestions(false)}></div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Site Web</label>
+                                            <div className="relative">
+                                                <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                                                <input
+                                                    type="url"
+                                                    placeholder="https://..."
+                                                    value={editData.website_url}
+                                                    onChange={e => setEditData({ ...editData, website_url: e.target.value })}
+                                                    className="w-full bg-dark-800 border border-white/5 rounded-2xl h-[50px] pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold text-sm"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 
@@ -2265,162 +2338,164 @@ const TripEditor: React.FC = () => {
             }
 
             {/* Travelers Management Off-Canvas */}
-            {showTravelersSheet && (
-                <div className="fixed inset-0 z-[100] flex justify-end">
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setShowTravelersSheet(false)}></div>
-                    <div className="relative w-full max-w-md bg-dark-900 border-l border-white/10 h-full shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col">
+            {
+                showTravelersSheet && (
+                    <div className="fixed inset-0 z-[100] flex justify-end">
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setShowTravelersSheet(false)}></div>
+                        <div className="relative w-full max-w-md bg-dark-900 border-l border-white/10 h-full shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col">
 
-                        {/* Header */}
-                        <div className="p-8 border-b border-white/5 flex items-center justify-between bg-dark-900/95 backdrop-blur-md z-10">
-                            <h2 className="text-2xl font-black italic">Gérer les voyageurs</h2>
-                            <button
-                                onClick={() => setShowTravelersSheet(false)}
-                                className="w-10 h-10 rounded-full bg-dark-800 border border-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-dark-700 transition-all"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
+                            {/* Header */}
+                            <div className="p-8 border-b border-white/5 flex items-center justify-between bg-dark-900/95 backdrop-blur-md z-10">
+                                <h2 className="text-2xl font-black italic">Gérer les voyageurs</h2>
+                                <button
+                                    onClick={() => setShowTravelersSheet(false)}
+                                    className="w-10 h-10 rounded-full bg-dark-800 border border-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-dark-700 transition-all"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
 
-                        <div className="flex-1 overflow-y-auto space-y-8">
+                            <div className="flex-1 overflow-y-auto space-y-8">
 
-                            {/* Status Feedback */}
-                            {inviteStatus !== 'idle' && (
-                                <div className="px-8 animate-in slide-in-from-top duration-300">
-                                    <div className={`p-4 rounded-2xl flex items-center gap-3 border ${inviteStatus === 'success'
-                                        ? 'bg-green-500/10 border-green-500/20 text-green-200'
-                                        : 'bg-red-500/10 border-red-500/20 text-red-200'
-                                        }`}>
-                                        {inviteStatus === 'success' ? <CheckCircle2 size={18} className="text-green-500" /> : <AlertTriangle size={18} className="text-red-500" />}
-                                        <span className="text-sm font-bold">{inviteStatusMessage}</span>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Current Members */}
-                            <section className="space-y-4 px-8">
-                                <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 flex items-center gap-2">
-                                    <Users size={12} />
-                                    Membres du voyage
-                                </h3>
-                                <div className="space-y-3">
-                                    {members.map(member => (
-                                        <div key={member.id} className="flex items-center gap-4 bg-dark-800/50 p-3 rounded-2xl border border-white/5 group relative overflow-visible z-10 hover:z-20">
-                                            <div className="w-10 h-10 rounded-full bg-dark-700 overflow-hidden flex items-center justify-center shrink-0 border border-white/10 text-xl">
-                                                {member.user?.emoji || '👤'}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="text-sm font-bold truncate">{member.user?.username || 'Utilisateur'}</div>
-                                                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center gap-2">
-                                                    {/* Role Selector */}
-                                                    {members.find(m => m.user_id === user?.id)?.role === 'owner' && member.role !== 'owner' ? (
-                                                        <select
-                                                            value={member.role}
-                                                            onChange={async (e) => {
-                                                                const newRole = e.target.value as 'editor' | 'viewer';
-                                                                // Optimistic Update
-                                                                setMembers(prev => prev.map(m => m.id === member.id ? { ...m, role: newRole } : m));
-
-                                                                const { error } = await supabase
-                                                                    .from('trip_members')
-                                                                    .update({ role: newRole })
-                                                                    .eq('id', member.id);
-
-                                                                if (error) {
-                                                                    console.error('Error updating role:', error);
-                                                                    // Revert if error (optional, could just refetch)
-                                                                    fetchMembers();
-                                                                }
-                                                            }}
-                                                            className="bg-transparent border-none p-0 text-[10px] uppercase font-bold text-brand-500 focus:ring-0 cursor-pointer hover:underline"
-                                                        >
-                                                            <option value="editor">Éditeur (Modifie)</option>
-                                                            <option value="viewer">Observateur (Voir)</option>
-                                                        </select>
-                                                    ) : (
-                                                        <span>{member.role === 'owner' ? 'Leader' : (member.role === 'editor' ? 'Éditeur' : 'Observateur')}</span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            {member.role !== 'owner' && members.find(m => m.user_id === user?.id)?.role === 'owner' && (
-                                                <button
-                                                    onClick={async () => {
-                                                        if (!confirm('Retirer ce membre ?')) return;
-                                                        const { error } = await supabase.from('trip_members').delete().eq('id', member.id);
-                                                        if (!error) setMembers(prev => prev.filter(m => m.id !== member.id));
-                                                    }}
-                                                    className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-500 transition-all"
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            )}
+                                {/* Status Feedback */}
+                                {inviteStatus !== 'idle' && (
+                                    <div className="px-8 animate-in slide-in-from-top duration-300">
+                                        <div className={`p-4 rounded-2xl flex items-center gap-3 border ${inviteStatus === 'success'
+                                            ? 'bg-green-500/10 border-green-500/20 text-green-200'
+                                            : 'bg-red-500/10 border-red-500/20 text-red-200'
+                                            }`}>
+                                            {inviteStatus === 'success' ? <CheckCircle2 size={18} className="text-green-500" /> : <AlertTriangle size={18} className="text-red-500" />}
+                                            <span className="text-sm font-bold">{inviteStatusMessage}</span>
                                         </div>
-                                    ))}
-                                </div>
-                            </section>
+                                    </div>
+                                )}
 
-                            {/* Pending Invitations */}
-                            {invitations.length > 0 && (
+                                {/* Current Members */}
                                 <section className="space-y-4 px-8">
                                     <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 flex items-center gap-2">
-                                        <Clock size={12} />
-                                        Invitations en attente
+                                        <Users size={12} />
+                                        Membres du voyage
                                     </h3>
-                                    <div className="space-y-2">
-                                        {invitations.map(invite => (
-                                            <div key={invite.id} className="flex items-center gap-4 p-3 rounded-2xl border border-white/5 bg-white/[0.02]">
-                                                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center shrink-0">
-                                                    {invite.email ? <Mail size={16} className="text-gray-400" /> : <LinkIcon size={16} className="text-brand-500" />}
+                                    <div className="space-y-3">
+                                        {members.map(member => (
+                                            <div key={member.id} className="flex items-center gap-4 bg-dark-800/50 p-3 rounded-2xl border border-white/5 group relative overflow-visible z-10 hover:z-20">
+                                                <div className="w-10 h-10 rounded-full bg-dark-700 overflow-hidden flex items-center justify-center shrink-0 border border-white/10 text-xl">
+                                                    {member.user?.emoji || '👤'}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="text-sm font-bold truncate text-gray-300">
-                                                        {invite.email || 'Lien Public Actif'}
-                                                    </div>
-                                                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
-                                                        En attente • Observateur
+                                                    <div className="text-sm font-bold truncate">{member.user?.username || 'Utilisateur'}</div>
+                                                    <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center gap-2">
+                                                        {/* Role Selector */}
+                                                        {members.find(m => m.user_id === user?.id)?.role === 'owner' && member.role !== 'owner' ? (
+                                                            <select
+                                                                value={member.role}
+                                                                onChange={async (e) => {
+                                                                    const newRole = e.target.value as 'editor' | 'viewer';
+                                                                    // Optimistic Update
+                                                                    setMembers(prev => prev.map(m => m.id === member.id ? { ...m, role: newRole } : m));
+
+                                                                    const { error } = await supabase
+                                                                        .from('trip_members')
+                                                                        .update({ role: newRole })
+                                                                        .eq('id', member.id);
+
+                                                                    if (error) {
+                                                                        console.error('Error updating role:', error);
+                                                                        // Revert if error (optional, could just refetch)
+                                                                        fetchMembers();
+                                                                    }
+                                                                }}
+                                                                className="bg-transparent border-none p-0 text-[10px] uppercase font-bold text-brand-500 focus:ring-0 cursor-pointer hover:underline"
+                                                            >
+                                                                <option value="editor">Éditeur (Modifie)</option>
+                                                                <option value="viewer">Observateur (Voir)</option>
+                                                            </select>
+                                                        ) : (
+                                                            <span>{member.role === 'owner' ? 'Leader' : (member.role === 'editor' ? 'Éditeur' : 'Observateur')}</span>
+                                                        )}
                                                     </div>
                                                 </div>
-                                                <button
-                                                    onClick={async () => {
-                                                        const { error } = await supabase.from('trip_invitations').delete().eq('id', invite.id);
-                                                        if (!error) {
-                                                            setInvitations(prev => prev.filter(i => i.id !== invite.id));
-                                                            setInviteStatus('success');
-                                                            setInviteStatusMessage('Invitation révoquée');
-                                                            setTimeout(() => setInviteStatus('idle'), 3000);
-                                                        }
-                                                    }}
-                                                    className="p-2 text-gray-600 hover:text-red-500 transition-all opacity-50 hover:opacity-100"
-                                                    title="Révoquer l'invitation"
-                                                >
-                                                    <X size={14} />
-                                                </button>
+                                                {member.role !== 'owner' && members.find(m => m.user_id === user?.id)?.role === 'owner' && (
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!confirm('Retirer ce membre ?')) return;
+                                                            const { error } = await supabase.from('trip_members').delete().eq('id', member.id);
+                                                            if (!error) setMembers(prev => prev.filter(m => m.id !== member.id));
+                                                        }}
+                                                        className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-red-500 transition-all"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
                                 </section>
-                            )}
 
-                            {/* Invite Actions */}
-                            <section className="space-y-6 pt-6 border-t border-white/5 px-8">
-                                <h3 className="text-[10px] font-black uppercase tracking-widest text-brand-500">Inviter des voyageurs</h3>
+                                {/* Pending Invitations */}
+                                {invitations.length > 0 && (
+                                    <section className="space-y-4 px-8">
+                                        <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 flex items-center gap-2">
+                                            <Clock size={12} />
+                                            Invitations en attente
+                                        </h3>
+                                        <div className="space-y-2">
+                                            {invitations.map(invite => (
+                                                <div key={invite.id} className="flex items-center gap-4 p-3 rounded-2xl border border-white/5 bg-white/[0.02]">
+                                                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center shrink-0">
+                                                        {invite.email ? <Mail size={16} className="text-gray-400" /> : <LinkIcon size={16} className="text-brand-500" />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-sm font-bold truncate text-gray-300">
+                                                            {invite.email || 'Lien Public Actif'}
+                                                        </div>
+                                                        <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                                                            En attente • Observateur
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={async () => {
+                                                            const { error } = await supabase.from('trip_invitations').delete().eq('id', invite.id);
+                                                            if (!error) {
+                                                                setInvitations(prev => prev.filter(i => i.id !== invite.id));
+                                                                setInviteStatus('success');
+                                                                setInviteStatusMessage('Invitation révoquée');
+                                                                setTimeout(() => setInviteStatus('idle'), 3000);
+                                                            }
+                                                        }}
+                                                        className="p-2 text-gray-600 hover:text-red-500 transition-all opacity-50 hover:opacity-100"
+                                                        title="Révoquer l'invitation"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </section>
+                                )}
 
-                                <div className="space-y-3">
-                                    <button
-                                        onClick={handleGenerateLink}
-                                        className="w-full h-[50px] rounded-2xl bg-brand-500 hover:bg-brand-600 text-white font-black uppercase tracking-widest text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 group"
-                                    >
-                                        <LinkIcon size={16} /> Copier le lien d'invitation
-                                    </button>
-                                    <p className="text-[10px] text-gray-500 text-center">
-                                        ⚠️ Le lien expire 24h après sa création
-                                    </p>
-                                </div>
-                            </section>
+                                {/* Invite Actions */}
+                                <section className="space-y-6 pt-6 border-t border-white/5 px-8">
+                                    <h3 className="text-[10px] font-black uppercase tracking-widest text-brand-500">Inviter des voyageurs</h3>
 
+                                    <div className="space-y-3">
+                                        <button
+                                            onClick={handleGenerateLink}
+                                            className="w-full h-[50px] rounded-2xl bg-brand-500 hover:bg-brand-600 text-white font-black uppercase tracking-widest text-xs transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 group"
+                                        >
+                                            <LinkIcon size={16} /> Copier le lien d'invitation
+                                        </button>
+                                        <p className="text-[10px] text-gray-500 text-center">
+                                            ⚠️ Le lien expire 24h après sa création
+                                        </p>
+                                    </div>
+                                </section>
+
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Confirmation Modal */}
             <GenericConfirmationModal
@@ -2431,7 +2506,7 @@ const TripEditor: React.FC = () => {
                 onConfirm={confirmConfig.onConfirm}
                 onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
             />
-        </div>
+        </div >
     );
 };
 
