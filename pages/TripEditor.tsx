@@ -910,29 +910,57 @@ const TripEditor: React.FC = () => {
 
 
     const handleUpdateCard = async () => {
-        if (!editingCard) return;
+        if (!editingCard || !tripId || !currentDay || !user) return;
 
-        const { data, error } = await supabase
-            .from('cards')
-            .update({
-                title: editData.title,
-                description: editData.description,
-                location_text: editData.location_text,
-                end_location_text: editData.type === 'Transport' ? editData.end_location_text : null,
-                website_url: editData.website_url || null,
-                start_time: editData.start_time || null,
-                end_time: editData.end_time || null,
-                type: editData.type,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', editingCard.id)
-            .select()
-            .single();
+        const cardData = {
+            title: editData.title,
+            description: editData.description,
+            location_text: editData.location_text,
+            end_location_text: editData.type.toLowerCase() === 'transport' ? editData.end_location_text : null,
+            website_url: editData.website_url || null,
+            start_time: editData.start_time || null,
+            end_time: editData.end_time || null,
+            type: editData.type,
+            updated_at: new Date().toISOString()
+        };
 
-        if (!error && data) {
-            setCards(prev => prev.map(c => c.id === data.id ? data : c));
-            setEditingCard(null);
-            setIsCreating(false);
+        if (isCreating) {
+            // INSERT NEW (DRAFT)
+            const newCard = {
+                ...cardData,
+                trip_id: tripId,
+                day_id: currentDay.id,
+                created_by: user.id,
+                order_index: cards.length,
+                source: 'manual'
+            };
+
+            const { data, error } = await supabase
+                .from('cards')
+                .insert(newCard)
+                .select()
+                .single();
+
+            if (!error && data) {
+                setCards([...cards, data]);
+                setEditingCard(null);
+                setIsCreating(false);
+            } else {
+                console.error("Error creating card:", error);
+            }
+        } else {
+            // UPDATE EXISTING
+            const { data, error } = await supabase
+                .from('cards')
+                .update(cardData)
+                .eq('id', editingCard.id)
+                .select()
+                .single();
+
+            if (!error && data) {
+                setCards(prev => prev.map(c => c.id === data.id ? data : c));
+                setEditingCard(null);
+            }
         }
     };
 
@@ -984,15 +1012,16 @@ const TripEditor: React.FC = () => {
         setShowIconSelect(false);
     };
 
-    const handleDirectAddCard = async () => {
+    const handleDirectAddCard = () => {
         if (!tripId || !currentDay) return;
 
-        // Create a default card with Type 'Activité'
-        const newCardData = {
+        // Create a local DRAFT card (not in DB, not in cards array)
+        const draftCard = {
+            id: 'draft-' + Date.now(), // Temp ID
             trip_id: tripId,
             day_id: currentDay.id,
             type: 'Activité',
-            title: '', // Empty title to force focus
+            title: '',
             description: '',
             order_index: cards.length,
             start_time: null,
@@ -1000,41 +1029,15 @@ const TripEditor: React.FC = () => {
             location_text: '',
             end_location_text: null,
             website_url: null,
-            created_by: user?.id
-        };
+            created_by: user?.id || ''
+        } as Card;
 
-        // Optimistic UI Update (Temporary ID)
-        const tempId = `temp-${Date.now()}`;
-        const tempCard = { ...newCardData, id: tempId } as Card;
-
-        setCards(prev => [...prev, tempCard]);
-
-        const { data, error } = await supabase
-            .from('cards')
-            .insert([newCardData])
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Error creating card:', error);
-            // Revert optimistic update
-            setCards(prev => prev.filter(c => c.id !== tempId));
-            return;
-        }
-
-        if (data) {
-            // Replace temp card with real one
-            setCards(prev => prev.map(c => c.id === tempId ? data : c));
-            // Open Edit Immediately
-            openEdit(data, true);
-        }
+        // Open Edit Mode Immediately with DRAFT
+        openEdit(draftCard, true);
     };
 
     const handleCancelEdit = async () => {
-        if (isCreating && editingCard) {
-            // If we were creating a new card and cancelled, delete it
-            await handleDeleteCard(editingCard.id);
-        }
+        // Just close, no DB cleanup needed for drafts as they were never saved
         setEditingCard(null);
         setIsCreating(false);
     };
@@ -1383,6 +1386,8 @@ const TripEditor: React.FC = () => {
         editData.title !== editingCard.title ||
         editData.description !== (editingCard.description || '') ||
         editData.location_text !== (editingCard.location_text || '') ||
+        editData.end_location_text !== (editingCard.end_location_text || '') ||
+        editData.website_url !== (editingCard.website_url || '') ||
         editData.start_time !== (editingCard.start_time?.slice(0, 5) || '') ||
         editData.end_time !== (editingCard.end_time?.slice(0, 5) || '') ||
         editData.type !== editingCard.type
