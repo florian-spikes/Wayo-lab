@@ -580,8 +580,9 @@ const TripEditor: React.FC = () => {
                 {
                     event: '*',
                     schema: 'public',
-                    table: 'checklists',
-                    filter: `trip_id=eq.${tripId}`
+                    table: 'checklists'
+                    // Remove filter here because DELETE events don't have trip_id (only PK)
+                    // unless REPLICA IDENTITY is FULL. So we filter client-side.
                 },
                 (payload) => {
                     const eventType = payload.eventType;
@@ -590,13 +591,17 @@ const TripEditor: React.FC = () => {
 
                     setChecklistItems(prev => {
                         if (eventType === 'INSERT') {
+                            if (newRecord.trip_id !== tripId) return prev; // Client-side filter
                             if (prev.find(i => i.id === newRecord.id)) return prev;
                             return [...prev, newRecord];
                         }
                         if (eventType === 'UPDATE') {
+                            if (newRecord.trip_id !== tripId) return prev; // Client-side filter
                             return prev.map(i => i.id === newRecord.id ? { ...i, ...newRecord } : i);
                         }
                         if (eventType === 'DELETE') {
+                            // No trip_id check possible on oldRecord usually, but if it exists in 'prev', 
+                            // it belongs to this trip.
                             return prev.filter(i => i.id !== oldRecord.id);
                         }
                         return prev;
