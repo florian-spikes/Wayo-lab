@@ -53,7 +53,8 @@ import {
     TreePine,
     CheckSquare,
     AlertTriangle,
-    Send
+    Send,
+    Pencil
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 
@@ -192,7 +193,7 @@ const SortableCard: React.FC<SortableCardProps & { onEdit: (card: Card) => void 
         transform: CSS.Transform.toString(transform),
         transition,
         zIndex: isDragging ? 50 : 'auto',
-        opacity: isDragging ? 0.5 : (isLocked ? 0.8 : 1)
+        opacity: isDragging ? 0.5 : 1
     };
 
     const getTypeIcon = (type: string, size = 18) => {
@@ -201,73 +202,73 @@ const SortableCard: React.FC<SortableCardProps & { onEdit: (card: Card) => void 
     };
 
     return (
-        <div ref={setNodeRef} style={style} className="relative pl-12 group mb-6">
-            {/* Timeline Dot */}
-            <div className={`absolute left-[22px] top-6 w-1.5 h-1.5 rounded-full ring-4 ring-dark-900 z-10 ${isLocked ? 'bg-gray-600' : 'bg-brand-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]'}`}></div>
+        <div ref={setNodeRef} style={style} className="relative pl-10 group">
+            {/* Timeline Dot - plus gros et mieux visible */}
+            <div className={`absolute left-[9px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 z-10 transition-all ${isLocked
+                ? 'bg-dark-800 border-gray-600'
+                : 'bg-brand-500 border-brand-400 shadow-[0_0_12px_rgba(249,115,22,0.4)]'
+                }`}></div>
 
             <div
                 onClick={() => !isDragging && onEdit(card)}
-                className={`bg-dark-800/50 border border-white/5 rounded-3xl p-5 hover:border-brand-500/20 transition-all flex gap-4 cursor-pointer ${isLocked ? '' : 'hover:shadow-lg hover:shadow-brand-500/5'}`}
+                className={`bg-dark-800/80 backdrop-blur-sm border rounded-2xl p-4 transition-all flex gap-3 ${isLocked
+                    ? 'border-white/5 cursor-default'
+                    : 'border-white/10 cursor-pointer hover:border-brand-500/30 hover:bg-dark-800 hover:shadow-lg hover:shadow-brand-500/5'
+                    }`}
             >
+                {/* Drag Handle */}
                 {!isLocked && (
                     <button
                         {...attributes}
                         {...listeners}
-                        className="p-2 -ml-2 text-gray-700 hover:text-gray-400 cursor-grab active:cursor-grabbing shrink-0"
+                        className="p-1.5 -ml-1 text-gray-600 hover:text-gray-400 cursor-grab active:cursor-grabbing shrink-0 self-center"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <GripVertical size={20} />
+                        <GripVertical size={16} />
                     </button>
                 )}
 
-                <div className="w-12 h-12 bg-dark-900 rounded-2xl flex items-center justify-center shrink-0 text-brand-500 shadow-inner">
-                    {getTypeIcon(card.type)}
+                {/* Icon */}
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${isLocked
+                    ? 'bg-dark-700 text-gray-500'
+                    : 'bg-brand-500/10 text-brand-500'
+                    }`}>
+                    {getTypeIcon(card.type, 18)}
                 </div>
 
+                {/* Content */}
                 <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start mb-1">
-                        <h3 className="font-bold truncate text-lg group-hover:text-white transition-colors">{card.title}</h3>
-                        <button className="text-gray-600 hover:text-white transition-colors">
-                            <MoreVertical size={18} />
-                        </button>
-                    </div>
-                    <div className="flex flex-wrap gap-3 text-[10px] font-black uppercase tracking-widest">
+                    <h3 className={`font-bold text-sm truncate transition-colors ${isLocked ? 'text-gray-400' : 'text-white group-hover:text-brand-400'
+                        }`}>{card.title}</h3>
+
+                    <div className="flex flex-wrap gap-2 mt-1.5">
                         {(card.start_time || card.end_time) && (
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-dark-900 rounded-lg text-gray-400 border border-white/5 capitalize">
-                                <Clock size={12} className="text-brand-500" />
-                                {card.start_time?.slice(0, 5) || '??'} - {card.end_time?.slice(0, 5) || '??'}
-                                {(() => {
-                                    if (card.start_time && card.end_time) {
-                                        const [sh, sm] = card.start_time.split(':').map(Number);
-                                        const [eh, em] = card.end_time.split(':').map(Number);
-                                        let duration = (eh * 60 + em) - (sh * 60 + sm);
-                                        if (duration < 0) duration += 1440;
-                                        const h = Math.floor(duration / 60);
-                                        const m = duration % 60;
-                                        return (
-                                            <span className="text-brand-500/60 ml-1">
-                                                ({h > 0 ? `${h}h` : ''}{m > 0 ? `${m}m` : ''})
-                                            </span>
-                                        );
-                                    }
-                                    return null;
-                                })()}
+                            <span className="flex items-center gap-1 text-[10px] font-semibold text-gray-500">
+                                <Clock size={10} className="text-brand-500/70" />
+                                {card.start_time?.slice(0, 5) || '??'}–{card.end_time?.slice(0, 5) || '??'}
                             </span>
                         )}
                         {card.location_text && (
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-dark-900 rounded-lg text-gray-400 border border-white/5 capitalize text-[9px]">
-                                <MapPin size={10} className="text-brand-500" />
+                            <span className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 truncate max-w-[120px]">
+                                <MapPin size={10} className="text-brand-500/70 shrink-0" />
                                 {card.location_text}
                             </span>
                         )}
                         {checklistCount > 0 && (
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-brand-500/5 rounded-lg text-brand-500 border border-brand-500/10">
+                            <span className="flex items-center gap-1 text-[10px] font-semibold text-brand-400">
                                 <CheckSquare size={10} />
-                                {checklistCount} {checklistCount > 1 ? 'tâches' : 'tâche'}
+                                {checklistCount}
                             </span>
                         )}
                     </div>
                 </div>
+
+                {/* Arrow indicator */}
+                {!isLocked && (
+                    <div className="self-center text-gray-600 group-hover:text-brand-500 transition-colors">
+                        <ChevronRight size={16} />
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -1375,25 +1376,32 @@ const TripEditor: React.FC = () => {
             {activeTab === 'itineraire' && (
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
                     <div className="flex gap-2.5 overflow-x-auto no-scrollbar py-2">
-                        {days.map((day) => (
-                            <button
-                                key={day.id}
-                                onClick={() => navigate(`/trips/${tripId}/day/${day.day_index}`)}
-                                className={`shrink-0 flex flex-col items-center justify-center w-12 h-14 rounded-xl border transition-all relative ${day.day_index === activeDayIndex ? 'bg-white text-dark-900 border-white shadow-lg' : 'bg-dark-800/50 border-white/5 text-gray-500 hover:bg-dark-800 hover:text-gray-300'}`}
-                            >
-                                <span className="text-[9px] font-black uppercase opacity-60">J{day.day_index}</span>
-                                <span className="text-base font-black">{day.date ? new Date(day.date).getDate() : '-'}</span>
-                                {day.edited_by ? (
-                                    <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center border-2 border-dark-900 bg-brand-500 text-white animate-pulse`}>
-                                        <Lock size={6} strokeWidth={4} />
-                                    </div>
-                                ) : day.status === 'locked' && (
-                                    <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center border-2 border-dark-900 ${day.day_index === activeDayIndex ? 'bg-dark-900 text-white' : 'bg-green-500 text-white'}`}>
-                                        <Check size={6} strokeWidth={4} />
-                                    </div>
-                                )}
-                            </button>
-                        ))}
+                        {days.map((day) => {
+                            const isBeingEdited = !!day.edited_by;
+                            const isValidated = day.status === 'locked';
+                            const isActive = day.day_index === activeDayIndex;
+
+                            return (
+                                <button
+                                    key={day.id}
+                                    onClick={() => navigate(`/trips/${tripId}/day/${day.day_index}`)}
+                                    className={`shrink-0 flex flex-col items-center justify-center w-12 h-14 rounded-xl transition-all relative ${isActive
+                                        ? 'bg-white text-dark-900 border-white shadow-lg border'
+                                        : isBeingEdited
+                                            ? 'bg-dark-800/50 border-2 border-dashed border-brand-500/60 text-brand-400'
+                                            : 'bg-dark-800/50 border border-white/5 text-gray-500 hover:bg-dark-800 hover:text-gray-300'
+                                        }`}
+                                >
+                                    <span className="text-[9px] font-black uppercase opacity-60">J{day.day_index}</span>
+                                    <span className="text-base font-black">{day.date ? new Date(day.date).getDate() : '-'}</span>
+                                    {isValidated && !isBeingEdited && (
+                                        <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center border-2 border-dark-900 ${isActive ? 'bg-dark-900 text-white' : 'bg-green-500 text-white'}`}>
+                                            <Check size={6} strokeWidth={4} />
+                                        </div>
+                                    )}
+                                </button>
+                            );
+                        })}
                         {canEditGlobal && (
                             <button
                                 onClick={handleAddDay}
@@ -1411,7 +1419,12 @@ const TripEditor: React.FC = () => {
                 <>
                     {/* Container Principal Itinéraire - Design cohérent avec Hero Card */}
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
-                        <div className="bg-gradient-to-br from-dark-800 via-dark-800 to-dark-900 rounded-[28px] border border-white/5 overflow-hidden shadow-2xl shadow-black/40">
+                        <div className={`bg-gradient-to-br from-dark-800 via-dark-800 to-dark-900 rounded-[28px] overflow-hidden shadow-2xl shadow-black/40 transition-all ${isLockedByMe
+                            ? 'border-2 border-dashed border-brand-500/60'
+                            : isLockedBySomeoneElse
+                                ? 'border-2 border-dashed border-orange-500/40'
+                                : 'border border-white/5'
+                            }`}>
 
                             {/* Header Journée */}
                             <div className="p-5 md:p-6 border-b border-white/5">
@@ -1456,21 +1469,15 @@ const TripEditor: React.FC = () => {
                                     </div>
 
                                     <div className="flex items-center gap-2">
-                                        {/* Tori IA Button */}
-                                        <button className="h-9 px-3 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center gap-2 hover:bg-brand-500/20 transition-all group/ia" title="Utiliser Tori IA">
-                                            <ToriLogo size={18} color="#f97316" className="group-hover/ia:scale-110 transition-transform" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-brand-500 hidden sm:inline">Tori IA</span>
-                                        </button>
-
-                                        {/* Modify / Save Button */}
+                                        {/* Organize Button */}
                                         {canEditGlobal && (
                                             isLockedByMe ? (
                                                 <button
                                                     onClick={handleReleaseLock}
-                                                    className="h-9 px-4 rounded-xl flex items-center gap-2 transition-all active:scale-95 text-[10px] font-black uppercase tracking-widest bg-green-500 text-white hover:bg-green-600"
+                                                    className="h-9 px-4 rounded-xl flex items-center gap-2 transition-all active:scale-95 text-[10px] font-black uppercase tracking-widest bg-brand-500 text-white hover:bg-brand-600"
                                                 >
                                                     <Check size={14} />
-                                                    <span className="hidden sm:inline">Quitter l'édition</span>
+                                                    <span className="hidden sm:inline">Terminer</span>
                                                 </button>
                                             ) : (
                                                 <button
@@ -1478,10 +1485,35 @@ const TripEditor: React.FC = () => {
                                                     disabled={isLockedBySomeoneElse}
                                                     className={`h-9 px-4 rounded-xl flex items-center gap-2 transition-all active:scale-95 text-[10px] font-black uppercase tracking-widest ${isLockedBySomeoneElse ? 'bg-dark-700 text-gray-600 cursor-not-allowed opacity-50' : 'bg-brand-500 text-white hover:bg-brand-600'}`}
                                                 >
-                                                    {isLockedBySomeoneElse ? <Lock size={14} /> : <CheckSquare size={14} />}
-                                                    <span className="hidden sm:inline">{isLockedBySomeoneElse ? 'En cours d\'édition' : 'Modifier les évènements'}</span>
+                                                    {isLockedBySomeoneElse ? <Lock size={14} /> : <Pencil size={14} />}
+                                                    <span className="hidden sm:inline">{isLockedBySomeoneElse ? 'En cours...' : 'Organiser'}</span>
                                                 </button>
                                             )
+                                        )}
+
+                                        {/* Validate Day Button */}
+                                        {canEditGlobal && !isLockedBySomeoneElse && (
+                                            <button
+                                                onClick={async () => {
+                                                    if (!currentDay) return;
+                                                    const newStatus = currentDay.status === 'locked' ? 'open' : 'locked';
+                                                    const { error } = await supabase
+                                                        .from('trip_days')
+                                                        .update({ status: newStatus })
+                                                        .eq('id', currentDay.id);
+                                                    if (!error) {
+                                                        setCurrentDay(prev => prev ? { ...prev, status: newStatus } : null);
+                                                        setDays(prev => prev.map(d => d.id === currentDay.id ? { ...d, status: newStatus } : d));
+                                                    }
+                                                }}
+                                                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all group ${currentDay?.status === 'locked'
+                                                    ? 'bg-green-500 text-white hover:bg-green-600'
+                                                    : 'bg-dark-700 border border-white/10 text-gray-500 hover:border-green-500/50 hover:text-green-400'
+                                                    }`}
+                                                title={currentDay?.status === 'locked' ? 'Journée validée' : 'Valider la journée'}
+                                            >
+                                                <Check size={16} className="group-hover:scale-110 transition-transform" />
+                                            </button>
                                         )}
 
                                         {canEditGlobal && (
@@ -1498,37 +1530,11 @@ const TripEditor: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Bannière Mode Édition */}
-                            {canEditGlobal && (isLockedByMe || isLockedBySomeoneElse) && (
-                                <div className={`mx-5 md:mx-6 mt-4 p-3 rounded-2xl border flex items-center gap-3 transition-all ${isLockedByMe
-                                        ? 'bg-green-500/10 border-green-500/20 text-green-400'
-                                        : 'bg-orange-500/10 border-orange-500/20 text-orange-400'
-                                    }`}>
-                                    {isLockedByMe ? (
-                                        <>
-                                            <CheckCircle2 size={16} />
-                                            <div className="flex-1">
-                                                <p className="text-xs font-bold">Mode édition actif</p>
-                                                <p className="text-[10px] opacity-70">Réorganisez et modifiez les étapes</p>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Lock size={16} className="animate-pulse" />
-                                            <div className="flex-1">
-                                                <p className="text-xs font-bold">{editingUser?.username || 'Un utilisateur'} modifie cette journée</p>
-                                                <p className="text-[10px] opacity-70">Vous pourrez modifier quand il aura terminé</p>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            )}
-
                             {/* Timeline Content */}
                             <div className="p-5 md:p-6">
-                                <div className="relative before:absolute before:left-[25px] before:top-0 before:bottom-0 before:w-0.5 before:bg-brand-500/20 before:rounded-full">
+                                <div className="relative before:absolute before:left-[15px] before:top-0 before:bottom-0 before:w-0.5 before:bg-gradient-to-b before:from-brand-500/30 before:via-brand-500/20 before:to-transparent before:rounded-full">
                                     {isDayLoading ? (
-                                        <div className="space-y-4 pl-8">
+                                        <div className="space-y-3">
                                             <CardSkeleton />
                                             <CardSkeleton />
                                             <CardSkeleton />
@@ -1545,7 +1551,7 @@ const TripEditor: React.FC = () => {
                                             <div className="text-center">
                                                 <p className="text-gray-400 font-bold text-sm mb-1">Rien de prévu</p>
                                                 <p className="text-[10px] font-black uppercase tracking-widest text-brand-500/50 group-hover:text-brand-500 transition-colors">
-                                                    {isLockedByMe ? 'Ajouter votre première étape' : 'Cliquez sur "Modifier"'}
+                                                    {isLockedByMe ? 'Ajouter votre première étape' : 'Cliquez sur "Organiser"'}
                                                 </p>
                                             </div>
                                         </button>
@@ -1556,7 +1562,7 @@ const TripEditor: React.FC = () => {
                                             onDragEnd={handleDragEnd}
                                             modifiers={[restrictToVerticalAxis]}
                                         >
-                                            <div className="space-y-4 pl-8">
+                                            <div className="space-y-3">
                                                 <SortableContext
                                                     items={cards.map(c => c.id)}
                                                     strategy={verticalListSortingStrategy}
