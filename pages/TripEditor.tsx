@@ -1504,29 +1504,33 @@ const TripEditor: React.FC = () => {
                                             )
                                         )}
 
-                                        {/* Validate Day Button - visible seulement hors modification */}
+                                        {/* Validate Day Switch - replace button */}
                                         {canEditGlobal && !isLockedByMe && !isLockedBySomeoneElse && (
-                                            <button
-                                                onClick={async () => {
-                                                    if (!currentDay) return;
-                                                    const newStatus = currentDay.status === 'locked' ? 'open' : 'locked';
-                                                    const { error } = await supabase
-                                                        .from('trip_days')
-                                                        .update({ status: newStatus })
-                                                        .eq('id', currentDay.id);
-                                                    if (!error) {
-                                                        setCurrentDay(prev => prev ? { ...prev, status: newStatus } : null);
-                                                        setDays(prev => prev.map(d => d.id === currentDay.id ? { ...d, status: newStatus } : d));
-                                                    }
-                                                }}
-                                                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all group border ${currentDay?.status === 'locked'
-                                                    ? 'border-green-500 bg-green-500/10 text-green-400 hover:bg-green-500/20'
-                                                    : 'border-white/10 bg-dark-700 text-gray-500 hover:border-green-500/50 hover:text-green-400'
-                                                    }`}
-                                                title={currentDay?.status === 'locked' ? 'Journée validée' : 'Valider la journée'}
-                                            >
-                                                <Check size={16} className="group-hover:scale-110 transition-transform" />
-                                            </button>
+                                            <div className="flex items-center gap-3 bg-dark-900/40 rounded-full px-3 py-1.5 border border-white/5">
+                                                <span className={`text-[10px] font-bold uppercase tracking-wider transition-colors ${currentDay?.status === 'locked' ? 'text-green-400' : 'text-gray-500'}`}>
+                                                    {currentDay?.status === 'locked' ? 'Validé' : 'Brouillon'}
+                                                </span>
+                                                <button
+                                                    onClick={async () => {
+                                                        if (!currentDay) return;
+                                                        const newStatus = currentDay.status === 'locked' ? 'open' : 'locked';
+                                                        const { error } = await supabase
+                                                            .from('trip_days')
+                                                            .update({ status: newStatus })
+                                                            .eq('id', currentDay.id);
+                                                        if (!error) {
+                                                            setCurrentDay(prev => prev ? { ...prev, status: newStatus } : null);
+                                                            setDays(prev => prev.map(d => d.id === currentDay.id ? { ...d, status: newStatus } : d));
+                                                        }
+                                                    }}
+                                                    className={`w-11 h-6 rounded-full p-1 transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-dark-900 focus:ring-brand-500 ${currentDay?.status === 'locked' ? 'bg-green-500' : 'bg-dark-700 border border-white/10'
+                                                        }`}
+                                                    title={currentDay?.status === 'locked' ? 'Déverrouiller la journée' : 'Valider la journée'}
+                                                >
+                                                    <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-300 ease-in-out ${currentDay?.status === 'locked' ? 'translate-x-5' : 'translate-x-0'
+                                                        }`} />
+                                                </button>
+                                            </div>
                                         )}
 
                                         {/* Delete Day Button - visible seulement en modification */}
