@@ -147,6 +147,7 @@ interface SortableCardProps {
     checklist_count?: number; // Count of checklist items
     isEditing?: boolean; // [NEW] State for inline editing
     children?: React.ReactNode; // [NEW] Form content
+    onDelete?: (card: Card) => void;
 }
 
 interface ChecklistItem {
@@ -284,10 +285,25 @@ const SortableCard: React.FC<SortableCardProps & { onEdit: (card: Card) => void 
                     </div>
                 </div>
 
-                {/* Arrow indicator */}
+                {/* Actions: Delete & Expand */}
                 {!isLocked && (
-                    <div className={`self-center text-gray-600 transition-all duration-300 ${isEditing ? 'text-brand-500 rotate-90' : 'group-hover:text-brand-500'}`}>
-                        <ChevronRight size={16} />
+                    <div className="flex items-center gap-2 self-center ml-2">
+                        {/* Delete Button (visible on hover or when editing) */}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete?.(card);
+                            }}
+                            className={`p-1.5 rounded-lg text-gray-600 hover:text-red-500 hover:bg-red-500/10 transition-all ${isEditing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                            title="Supprimer l'étape"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+
+                        {/* Chevron */}
+                        <div className={`text-gray-600 transition-all duration-300 ${isEditing ? 'text-brand-500 rotate-90' : 'group-hover:text-brand-500'}`}>
+                            <ChevronRight size={16} />
+                        </div>
                     </div>
                 )}
             </div>
@@ -1689,7 +1705,7 @@ const TripEditor: React.FC = () => {
                                                     className={`h-9 px-4 rounded-xl flex items-center gap-2 transition-all active:scale-95 text-[10px] font-black uppercase tracking-widest ${isLockedBySomeoneElse ? 'bg-dark-700 text-gray-600 cursor-not-allowed opacity-50' : 'bg-brand-500 text-white hover:bg-brand-600'}`}
                                                 >
                                                     {isLockedBySomeoneElse ? <Lock size={14} /> : <Pencil size={14} />}
-                                                    <span className="hidden sm:inline">{isLockedBySomeoneElse ? 'En cours...' : 'Réorganiser'}</span>
+                                                    <span className="hidden sm:inline">{isLockedBySomeoneElse ? 'En cours...' : 'Organiser'}</span>
                                                 </button>
                                             )
                                         )}
@@ -1782,30 +1798,13 @@ const TripEditor: React.FC = () => {
                                                             card={card}
                                                             isLocked={!isLockedByMe}
                                                             onEdit={() => isLockedByMe && openEdit(card)}
+                                                            onDelete={() => handleDeleteCard(card.id)}
                                                             checklistCount={checklistItems.filter(i => i.card_id === card.id).length}
                                                             isEditing={editingCard?.id === card.id}
                                                         >
                                                             {/* INLINE EDIT FORM */}
                                                             {editingCard?.id === card.id && (
                                                                 <div className="space-y-6 animate-in fade-in duration-300">
-
-                                                                    {/* Header Actions (Delete/Close) */}
-                                                                    <div className="flex justify-end gap-2 mb-4">
-                                                                        <button
-                                                                            onClick={() => handleDeleteCard(card.id)}
-                                                                            className="h-8 px-3 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2"
-                                                                        >
-                                                                            <Trash2 size={14} />
-                                                                            Supprimer
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={handleCancelEdit}
-                                                                            className="h-8 px-3 rounded-lg bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2"
-                                                                        >
-                                                                            <X size={14} />
-                                                                            Fermer
-                                                                        </button>
-                                                                    </div>
 
                                                                     {/* Type Selection */}
                                                                     <div className="space-y-3">
@@ -1979,6 +1978,59 @@ const TripEditor: React.FC = () => {
                                                                                 )}
                                                                             </div>
                                                                         )}
+                                                                    </div>
+
+                                                                    {/* Checklist (Restored) */}
+                                                                    <div className="space-y-4 pt-4 border-t border-white/5">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <CheckSquare size={16} className="text-brand-500" />
+                                                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Checklist</h4>
+                                                                        </div>
+
+                                                                        {/* Liste des tâches */}
+                                                                        <div className="space-y-2 mb-4">
+                                                                            {checklistItems.filter(item => item.card_id === card.id).map((item) => (
+                                                                                <div key={item.id} className="bg-dark-900 border border-white/5 rounded-xl p-3 flex items-center justify-between group animate-in slide-in-from-left-2 duration-300">
+                                                                                    <div className="flex items-center gap-3">
+                                                                                        <button
+                                                                                            onClick={() => handleToggleChecklist(item.id, item.is_completed)}
+                                                                                            className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${item.is_completed ? 'bg-green-500 border-green-500 text-white' : 'border-white/10 hover:border-brand-500/50'}`}
+                                                                                        >
+                                                                                            {item.is_completed && <Check size={12} />}
+                                                                                        </button>
+                                                                                        <span className={`text-xs font-bold ${item.is_completed ? 'line-through text-gray-600' : 'text-gray-300'}`}>
+                                                                                            {item.checklist_data?.label}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    <button
+                                                                                        onClick={async () => {
+                                                                                            const { error } = await supabase.from('checklists').delete().eq('id', item.id);
+                                                                                            if (!error) setChecklistItems(prev => prev.filter(i => i.id !== item.id));
+                                                                                        }}
+                                                                                        className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-600 hover:text-red-500 transition-all"
+                                                                                    >
+                                                                                        <X size={14} />
+                                                                                    </button>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+
+                                                                        <div className="flex gap-2">
+                                                                            <input
+                                                                                type="text"
+                                                                                placeholder="Ajouter une tâche..."
+                                                                                value={newChecklistItem}
+                                                                                onChange={e => setNewChecklistItem(e.target.value)}
+                                                                                className="flex-1 bg-dark-800 border border-white/5 rounded-xl h-[42px] px-4 text-sm text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
+                                                                                onKeyDown={e => e.key === 'Enter' && handleAddChecklistItem()}
+                                                                            />
+                                                                            <button
+                                                                                onClick={handleAddChecklistItem}
+                                                                                className="w-[42px] h-[42px] flex items-center justify-center rounded-xl bg-brand-500 text-white hover:bg-brand-600 transition-all shadow-lg active:scale-95"
+                                                                            >
+                                                                                <Plus size={18} />
+                                                                            </button>
+                                                                        </div>
                                                                     </div>
 
                                                                     {/* Description */}
