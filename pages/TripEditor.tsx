@@ -1772,9 +1772,9 @@ const TripEditor: React.FC = () => {
                                                 placeholder={`Journée ${activeDayIndex}`}
                                                 onChange={(e) => handleUpdateDayTitle(e.target.value)}
                                                 disabled={!isLockedByMe}
-                                                className={`bg-transparent border-none text-xl md:text-2xl font-black focus:ring-0 p-0 w-full transition-colors ${isLockedByMe
-                                                    ? 'text-white/90 hover:text-white placeholder:text-white/20'
-                                                    : 'text-white cursor-default' // [FIX] Removed gray/opacity for clear reading
+                                                className={`text-xl md:text-2xl font-black focus:ring-0 w-full transition-all rounded-lg px-3 py-2 ${isLockedByMe
+                                                    ? 'bg-dark-800 border border-brand-500/30 text-white placeholder:text-white/30 focus:border-brand-500 shadow-inner'
+                                                    : 'bg-transparent border-transparent text-white cursor-default px-0'
                                                     }`}
                                             />
                                         </div>
