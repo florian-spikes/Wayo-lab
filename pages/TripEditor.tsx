@@ -131,7 +131,7 @@ const MAPBOX_TOKEN = 'pk.eyJ1IjoiaGFhcnJwIiwiYSI6ImNtbGFwN3A3dzBjaTQzZHNnaWgxcXI
 
 // --- Liste des types d'évènements avec leurs icônes ---
 const EVENT_TYPES = [
-    { id: 'Activité', icon: <ActivityIcon size={24} />, label: 'Activité', color: 'text-brand-500' },
+    { id: 'activité', icon: <ActivityIcon size={24} />, label: 'Activité', color: 'text-brand-500' },
     { id: 'repas', icon: <Utensils size={24} />, label: 'Repas', color: 'text-orange-500' },
     { id: 'transport', icon: <Car size={24} />, label: 'Transport', color: 'text-blue-500' },
     { id: 'hébergement', icon: <Hotel size={24} />, label: 'Hébergement', color: 'text-indigo-500' },
@@ -965,7 +965,8 @@ const TripEditor: React.FC = () => {
 
 
 
-    const handleUpdateCard = async () => {
+    // [REFACTORED] Updated to support Auto-Save and stay in edit mode
+    const saveCard = useCallback(async (shouldClose: boolean = false) => {
         if (!editingCard || !tripId || !currentDay || !user) return;
 
         const cardData = {
@@ -980,8 +981,10 @@ const TripEditor: React.FC = () => {
             updated_at: new Date().toISOString()
         };
 
+        let savedCard: Card;
+
         if (isCreating) {
-            // INSERT NEW (DRAFT)
+            // INSERT NEW (DRAFT) -> BECOMES VALID
             const newCard = {
                 ...cardData,
                 trip_id: tripId,
@@ -991,18 +994,15 @@ const TripEditor: React.FC = () => {
                 source: 'manual'
             };
 
-            const { data, error } = await supabase
-                .from('cards')
-                .insert(newCard)
-                .select()
-                .single();
+            const { data, error } = await supabase.from('cards').insert(newCard).select().single();
 
             if (!error && data) {
-                setCards([...cards, data]);
-                setEditingCard(null);
-                setIsCreating(false);
+                savedCard = data;
+                setCards(prev => [...prev, data]);
+                setIsCreating(false); // No longer in creation mode
             } else {
                 console.error("Error creating card:", error);
+                return;
             }
         } else {
             // UPDATE EXISTING
@@ -1014,11 +1014,33 @@ const TripEditor: React.FC = () => {
                 .single();
 
             if (!error && data) {
+                savedCard = data;
                 setCards(prev => prev.map(c => c.id === data.id ? data : c));
-                setEditingCard(null);
+            } else {
+                console.error("Error updating card:", error);
+                return;
             }
         }
-    };
+
+        // Update editing state
+        if (shouldClose) {
+            setEditingCard(null);
+        } else if (savedCard) {
+            // Important for next Auto-Save: Update reference to prevent infinite loop or wrong diff
+            setEditingCard(savedCard);
+        }
+    }, [editingCard, tripId, currentDay, user, editData, isCreating, cards.length]);
+
+    // [NEW] Auto-Save Effect
+    useEffect(() => {
+        if (!editingCard || !hasChanges) return;
+
+        const timer = setTimeout(() => {
+            saveCard(false); // Auto-save without closing
+        }, 1000); // 1s debounce
+
+        return () => clearTimeout(timer);
+    }, [editData, hasChanges, saveCard]);
 
     const handleDeleteCard = async (id: string) => {
         setConfirmConfig({
@@ -1037,14 +1059,39 @@ const TripEditor: React.FC = () => {
         });
     };
 
+    const handleCloseEdit = () => {
+        // [NEW] Logic: Explicitly save (or just close since auto-save handles it)
+        // If we want to be safe, we can call saveCard(true);
+        // But since auto-save is debounced, there might be a pending change.
+        // Calling saveCard(true) handles it immediately.
+        if (hasChanges) {
+            saveCard(true);
+        } else {
+            setEditingCard(null);
+            if (isCreating) {
+                // If we were creating but didn't save? Actually, card is already inserted as Draft.
+                // We should probably keep it or delete it if it's empty?
+                // For now, simpler to just close.
+                setIsCreating(false);
+            }
+        }
+    };
+
     const openEdit = (card: Card, isNew: boolean = false) => {
         // Toggle Logic: If clicking the same card, close it
         if (editingCard?.id === card.id) {
-            handleCancelEdit();
+            handleCloseEdit();
             return;
         }
 
+        if (editingCard && hasChanges) {
+            // If switching from another card, save the previous one first
+            saveCard(true);
+        }
+
         setIsCreating(isNew);
+        // ... rest of logic
+
 
         // Calculer la durée initiale en minutes si les deux heures existent
         let initialDuration: number | 'custom' = 60; // Default to 60 minutes
@@ -1098,10 +1145,13 @@ const TripEditor: React.FC = () => {
         openEdit(draftCard, true);
     };
 
-    const handleCancelEdit = async () => {
-        // Just close, no DB cleanup needed for drafts as they were never saved
-        setEditingCard(null);
-        setIsCreating(false);
+    const handleCancelEdit = () => {
+        if (hasChanges) {
+            saveCard(true);
+        } else {
+            setEditingCard(null);
+            if (isCreating) setIsCreating(false);
+        }
     };
 
     useEffect(() => {
@@ -1792,177 +1842,155 @@ const TripEditor: React.FC = () => {
                                                     items={cards.map(c => c.id)}
                                                     strategy={verticalListSortingStrategy}
                                                 >
-                                                    {cards.map((card) => (
-                                                        <SortableCard
-                                                            key={card.id}
-                                                            card={card}
-                                                            isLocked={!isLockedByMe}
-                                                            onEdit={() => isLockedByMe && openEdit(card)}
-                                                            onDelete={() => handleDeleteCard(card.id)}
-                                                            checklistCount={checklistItems.filter(i => i.card_id === card.id).length}
-                                                            isEditing={editingCard?.id === card.id}
-                                                        >
-                                                            {/* INLINE EDIT FORM */}
-                                                            {editingCard?.id === card.id && (
-                                                                <div className="space-y-6 animate-in fade-in duration-300">
+                                                    {cards.map((card) => {
+                                                        // [NEW] Live Preview: Merge real data with edit data if editing this card
+                                                        const isEditing = editingCard?.id === card.id;
+                                                        const displayCard = isEditing ? { ...card, ...editData, type: editData.type } : card;
 
-                                                                    {/* Type Selection */}
-                                                                    <div className="space-y-3">
-                                                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Type</label>
-                                                                        <div className="grid grid-cols-4 gap-2">
-                                                                            {EVENT_TYPES.map(t => (
-                                                                                <button
-                                                                                    key={t.id}
-                                                                                    onClick={() => setEditData({ ...editData, type: t.id })}
-                                                                                    className={`flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl border transition-all duration-200 ${editData.type === t.id
-                                                                                        ? 'bg-brand-500 border-brand-400 text-white ring-2 ring-brand-500/20'
-                                                                                        : 'bg-dark-800 border-white/5 text-gray-500 hover:bg-dark-700 hover:text-gray-300'
-                                                                                        }`}
-                                                                                >
-                                                                                    {React.cloneElement(t.icon as React.ReactElement, { size: 18 })}
-                                                                                    <span className="text-[9px] font-black uppercase tracking-wide truncate w-full text-center">{t.label}</span>
-                                                                                </button>
-                                                                            ))}
-                                                                        </div>
-                                                                    </div>
+                                                        return (
+                                                            <SortableCard
+                                                                key={card.id}
+                                                                card={displayCard}
+                                                                isLocked={!isLockedByMe}
+                                                                onEdit={() => isLockedByMe && openEdit(card)}
+                                                                onDelete={() => handleDeleteCard(card.id)}
+                                                                checklistCount={checklistItems.filter(i => i.card_id === card.id).length}
+                                                                isEditing={isEditing}
+                                                            >
+                                                                {/* INLINE EDIT FORM */}
+                                                                {isEditing && (
+                                                                    <div className="space-y-6 animate-in fade-in duration-300">
 
-                                                                    {/* Title */}
-                                                                    <div className="space-y-2">
-                                                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Titre</label>
-                                                                        <input
-                                                                            type="text"
-                                                                            value={editData.title}
-                                                                            onChange={e => setEditData({ ...editData, title: e.target.value })}
-                                                                            className="w-full bg-dark-800 border border-white/5 rounded-xl h-[42px] px-4 text-sm font-bold text-white focus:outline-none focus:border-brand-500 transition-all placeholder:text-white/10"
-                                                                            placeholder="Nommez votre moment..."
-                                                                        />
-                                                                    </div>
+                                                                        {/* Header Actions (Delete/Close) */}
+                                                                        {/* <div className="flex justify-end gap-2 mb-4"> ... REMOVED ... </div> */}
 
-                                                                    {/* Time & Duration */}
-                                                                    <div className="bg-dark-800/30 p-4 rounded-2xl border border-white/5 space-y-4">
-                                                                        <div className="grid grid-cols-2 gap-4">
-                                                                            <div className="space-y-2">
-                                                                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Début</label>
-                                                                                <div className="relative">
-                                                                                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-500" size={14} />
-                                                                                    <input
-                                                                                        type="time"
-                                                                                        value={editData.start_time}
-                                                                                        onChange={e => {
-                                                                                            const start = e.target.value;
-                                                                                            let end = editData.end_time;
-                                                                                            if (editData.duration !== 'custom') {
-                                                                                                const [h, m] = start.split(':').map(Number);
-                                                                                                const totalMinutes = h * 60 + m + (editData.duration as number);
-                                                                                                const eh = Math.floor(totalMinutes / 60) % 24;
-                                                                                                const em = totalMinutes % 60;
-                                                                                                end = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
-                                                                                            }
-                                                                                            setEditData({ ...editData, start_time: start, end_time: end });
-                                                                                        }}
-                                                                                        className="w-full bg-dark-800 border border-white/5 rounded-xl h-[42px] pl-10 pr-3 text-white text-sm focus:outline-none focus:border-brand-500 transition-all font-bold"
-                                                                                    />
-                                                                                </div>
-                                                                            </div>
-                                                                            <div className="space-y-2">
-                                                                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Fin</label>
-                                                                                <div className="relative">
-                                                                                    {editData.duration === 'custom' ? (
-                                                                                        <input
-                                                                                            type="time"
-                                                                                            value={editData.end_time}
-                                                                                            onChange={e => setEditData({ ...editData, end_time: e.target.value })}
-                                                                                            className="w-full bg-dark-800 border border-brand-500/50 rounded-xl h-[42px] px-3 text-white text-sm focus:outline-none focus:border-brand-500 transition-all font-bold"
-                                                                                        />
-                                                                                    ) : (
-                                                                                        <div className="h-[42px] flex items-center px-4 bg-dark-950/30 rounded-xl border border-white/5 text-gray-500 font-bold text-sm">
-                                                                                            {editData.end_time || '--:--'}
-                                                                                        </div>
-                                                                                    )}
-                                                                                </div>
+                                                                        {/* Type Selection */}
+                                                                        <div className="space-y-3">
+                                                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Type</label>
+                                                                            <div className="grid grid-cols-4 gap-2">
+                                                                                {EVENT_TYPES.map(t => (
+                                                                                    <button
+                                                                                        key={t.id}
+                                                                                        onClick={() => setEditData({ ...editData, type: t.id })}
+                                                                                        className={`flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl border transition-all duration-200 ${editData.type === t.id
+                                                                                            ? 'bg-brand-500 border-brand-400 text-white ring-2 ring-brand-500/20'
+                                                                                            : 'bg-dark-800 border-white/5 text-gray-500 hover:bg-dark-700 hover:text-gray-300'
+                                                                                            }`}
+                                                                                    >
+                                                                                        {React.cloneElement(t.icon as React.ReactElement, { size: 18 })}
+                                                                                        <span className="text-[9px] font-black uppercase tracking-wide truncate w-full text-center">{t.label}</span>
+                                                                                    </button>
+                                                                                ))}
                                                                             </div>
                                                                         </div>
 
-                                                                        {/* Duration Presets */}
-                                                                        <div className="flex flex-wrap gap-2">
-                                                                            {[
-                                                                                { label: '30m', val: 30 },
-                                                                                { label: '1h', val: 60 },
-                                                                                { label: '1h30', val: 90 },
-                                                                                { label: '2h', val: 120 },
-                                                                                { label: 'Autre', val: 'custom' },
-                                                                            ].map(d => (
-                                                                                <button
-                                                                                    key={d.label}
-                                                                                    type="button"
-                                                                                    onClick={() => {
-                                                                                        if (d.val === 'custom') {
-                                                                                            setEditData({ ...editData, duration: 'custom' });
-                                                                                            return;
-                                                                                        }
-                                                                                        if (!editData.start_time) return;
-                                                                                        const [h, m] = editData.start_time.split(':').map(Number);
-                                                                                        const totalMinutes = h * 60 + m + (d.val as number);
-                                                                                        const eh = Math.floor(totalMinutes / 60) % 24;
-                                                                                        const em = totalMinutes % 60;
-                                                                                        const end = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
-                                                                                        setEditData({ ...editData, duration: d.val, end_time: end });
-                                                                                    }}
-                                                                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${editData.duration === d.val ? 'bg-brand-500 text-white' : 'bg-dark-900 text-gray-500 hover:text-gray-300 border border-white/5'}`}
-                                                                                >
-                                                                                    {d.label}
-                                                                                </button>
-                                                                            ))}
-                                                                        </div>
-                                                                    </div>
-
-                                                                    {/* Location */}
-                                                                    <div className="space-y-4">
-                                                                        <div className="relative">
-                                                                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
+                                                                        {/* Title */}
+                                                                        <div className="space-y-2">
+                                                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Titre</label>
                                                                             <input
                                                                                 type="text"
-                                                                                placeholder={editData.type === 'transport' ? "Départ..." : "Lieu..."}
-                                                                                value={editData.location_text}
-                                                                                onChange={e => handleAddressSearch(e.target.value, 'start')}
-                                                                                onFocus={() => {
-                                                                                    setActiveAddressField('start');
-                                                                                    if (editData.location_text.length > 2) setShowAddressSuggestions(true);
-                                                                                }}
-                                                                                className="w-full bg-dark-800 border border-white/5 rounded-xl h-[42px] pl-10 pr-4 text-white text-sm focus:outline-none focus:border-brand-500 transition-all font-bold"
+                                                                                value={editData.title}
+                                                                                onChange={e => setEditData({ ...editData, title: e.target.value })}
+                                                                                className="w-full bg-dark-800 border border-white/5 rounded-xl h-[42px] px-4 text-sm font-bold text-white focus:outline-none focus:border-brand-500 transition-all placeholder:text-white/10"
+                                                                                placeholder="Nommez votre moment..."
                                                                             />
-                                                                            {/* Suggestions (Simplified for inline) */}
-                                                                            {showAddressSuggestions && activeAddressField === 'start' && addressSuggestions.length > 0 && (
-                                                                                <div className="absolute top-full left-0 right-0 mt-2 bg-dark-900 border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden max-h-40 overflow-y-auto">
-                                                                                    {addressSuggestions.map((feature: any) => (
-                                                                                        <button
-                                                                                            key={feature.id}
-                                                                                            onClick={() => selectAddress(feature)}
-                                                                                            className="w-full text-left px-4 py-2 hover:bg-white/5 text-xs font-medium border-b border-white/5 last:border-0 flex items-center gap-2"
-                                                                                        >
-                                                                                            <span className="truncate">{feature.place_name}</span>
-                                                                                        </button>
-                                                                                    ))}
-                                                                                    <div className="fixed inset-0 z-[-1]" onClick={() => setShowAddressSuggestions(false)}></div>
-                                                                                </div>
-                                                                            )}
                                                                         </div>
 
-                                                                        {editData.type === 'transport' && (
+                                                                        {/* Time & Duration */}
+                                                                        <div className="bg-dark-800/30 p-4 rounded-2xl border border-white/5 space-y-4">
+                                                                            <div className="grid grid-cols-2 gap-4">
+                                                                                <div className="space-y-2">
+                                                                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Début</label>
+                                                                                    <div className="relative">
+                                                                                        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-500" size={14} />
+                                                                                        <input
+                                                                                            type="time"
+                                                                                            value={editData.start_time}
+                                                                                            onChange={e => {
+                                                                                                const start = e.target.value;
+                                                                                                let end = editData.end_time;
+                                                                                                if (editData.duration !== 'custom') {
+                                                                                                    const [h, m] = start.split(':').map(Number);
+                                                                                                    const totalMinutes = h * 60 + m + (editData.duration as number);
+                                                                                                    const eh = Math.floor(totalMinutes / 60) % 24;
+                                                                                                    const em = totalMinutes % 60;
+                                                                                                    end = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+                                                                                                }
+                                                                                                setEditData({ ...editData, start_time: start, end_time: end });
+                                                                                            }}
+                                                                                            className="w-full bg-dark-800 border border-white/5 rounded-xl h-[42px] pl-10 pr-3 text-white text-sm focus:outline-none focus:border-brand-500 transition-all font-bold"
+                                                                                        />
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div className="space-y-2">
+                                                                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Fin</label>
+                                                                                    <div className="relative">
+                                                                                        {editData.duration === 'custom' ? (
+                                                                                            <input
+                                                                                                type="time"
+                                                                                                value={editData.end_time}
+                                                                                                onChange={e => setEditData({ ...editData, end_time: e.target.value })}
+                                                                                                className="w-full bg-dark-800 border border-brand-500/50 rounded-xl h-[42px] px-3 text-white text-sm focus:outline-none focus:border-brand-500 transition-all font-bold"
+                                                                                            />
+                                                                                        ) : (
+                                                                                            <div className="h-[42px] flex items-center px-4 bg-dark-950/30 rounded-xl border border-white/5 text-gray-500 font-bold text-sm">
+                                                                                                {editData.end_time || '--:--'}
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            {/* Duration Presets */}
+                                                                            <div className="flex flex-wrap gap-2">
+                                                                                {[
+                                                                                    { label: '30m', val: 30 },
+                                                                                    { label: '1h', val: 60 },
+                                                                                    { label: '1h30', val: 90 },
+                                                                                    { label: '2h', val: 120 },
+                                                                                    { label: 'Autre', val: 'custom' },
+                                                                                ].map(d => (
+                                                                                    <button
+                                                                                        key={d.label}
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            if (d.val === 'custom') {
+                                                                                                setEditData({ ...editData, duration: 'custom' });
+                                                                                                return;
+                                                                                            }
+                                                                                            if (!editData.start_time) return;
+                                                                                            const [h, m] = editData.start_time.split(':').map(Number);
+                                                                                            const totalMinutes = h * 60 + m + (d.val as number);
+                                                                                            const eh = Math.floor(totalMinutes / 60) % 24;
+                                                                                            const em = totalMinutes % 60;
+                                                                                            const end = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+                                                                                            setEditData({ ...editData, duration: d.val, end_time: end });
+                                                                                        }}
+                                                                                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${editData.duration === d.val ? 'bg-brand-500 text-white' : 'bg-dark-900 text-gray-500 hover:text-gray-300 border border-white/5'}`}
+                                                                                    >
+                                                                                        {d.label}
+                                                                                    </button>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* Location */}
+                                                                        <div className="space-y-4">
                                                                             <div className="relative">
-                                                                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-500" size={14} />
+                                                                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
                                                                                 <input
                                                                                     type="text"
-                                                                                    placeholder="Arrivée..."
-                                                                                    value={editData.end_location_text}
-                                                                                    onChange={e => handleAddressSearch(e.target.value, 'end')}
+                                                                                    placeholder={editData.type === 'transport' ? "Départ..." : "Lieu..."}
+                                                                                    value={editData.location_text}
+                                                                                    onChange={e => handleAddressSearch(e.target.value, 'start')}
                                                                                     onFocus={() => {
-                                                                                        setActiveAddressField('end');
-                                                                                        if (editData.end_location_text.length > 2) setShowAddressSuggestions(true);
+                                                                                        setActiveAddressField('start');
+                                                                                        if (editData.location_text.length > 2) setShowAddressSuggestions(true);
                                                                                     }}
                                                                                     className="w-full bg-dark-800 border border-white/5 rounded-xl h-[42px] pl-10 pr-4 text-white text-sm focus:outline-none focus:border-brand-500 transition-all font-bold"
                                                                                 />
-                                                                                {showAddressSuggestions && activeAddressField === 'end' && addressSuggestions.length > 0 && (
+                                                                                {/* Suggestions (Simplified for inline) */}
+                                                                                {showAddressSuggestions && activeAddressField === 'start' && addressSuggestions.length > 0 && (
                                                                                     <div className="absolute top-full left-0 right-0 mt-2 bg-dark-900 border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden max-h-40 overflow-y-auto">
                                                                                         {addressSuggestions.map((feature: any) => (
                                                                                             <button
@@ -1977,88 +2005,109 @@ const TripEditor: React.FC = () => {
                                                                                     </div>
                                                                                 )}
                                                                             </div>
-                                                                        )}
-                                                                    </div>
 
-                                                                    {/* Checklist (Restored) */}
-                                                                    <div className="space-y-4 pt-4 border-t border-white/5">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <CheckSquare size={16} className="text-brand-500" />
-                                                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Checklist</h4>
-                                                                        </div>
-
-                                                                        {/* Liste des tâches */}
-                                                                        <div className="space-y-2 mb-4">
-                                                                            {checklistItems.filter(item => item.card_id === card.id).map((item) => (
-                                                                                <div key={item.id} className="bg-dark-900 border border-white/5 rounded-xl p-3 flex items-center justify-between group animate-in slide-in-from-left-2 duration-300">
-                                                                                    <div className="flex items-center gap-3">
-                                                                                        <button
-                                                                                            onClick={() => handleToggleChecklist(item.id, item.is_completed)}
-                                                                                            className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${item.is_completed ? 'bg-green-500 border-green-500 text-white' : 'border-white/10 hover:border-brand-500/50'}`}
-                                                                                        >
-                                                                                            {item.is_completed && <Check size={12} />}
-                                                                                        </button>
-                                                                                        <span className={`text-xs font-bold ${item.is_completed ? 'line-through text-gray-600' : 'text-gray-300'}`}>
-                                                                                            {item.checklist_data?.label}
-                                                                                        </span>
-                                                                                    </div>
-                                                                                    <button
-                                                                                        onClick={async () => {
-                                                                                            const { error } = await supabase.from('checklists').delete().eq('id', item.id);
-                                                                                            if (!error) setChecklistItems(prev => prev.filter(i => i.id !== item.id));
+                                                                            {editData.type === 'transport' && (
+                                                                                <div className="relative">
+                                                                                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-500" size={14} />
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        placeholder="Arrivée..."
+                                                                                        value={editData.end_location_text}
+                                                                                        onChange={e => handleAddressSearch(e.target.value, 'end')}
+                                                                                        onFocus={() => {
+                                                                                            setActiveAddressField('end');
+                                                                                            if (editData.end_location_text.length > 2) setShowAddressSuggestions(true);
                                                                                         }}
-                                                                                        className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-600 hover:text-red-500 transition-all"
-                                                                                    >
-                                                                                        <X size={14} />
-                                                                                    </button>
+                                                                                        className="w-full bg-dark-800 border border-white/5 rounded-xl h-[42px] pl-10 pr-4 text-white text-sm focus:outline-none focus:border-brand-500 transition-all font-bold"
+                                                                                    />
+                                                                                    {showAddressSuggestions && activeAddressField === 'end' && addressSuggestions.length > 0 && (
+                                                                                        <div className="absolute top-full left-0 right-0 mt-2 bg-dark-900 border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden max-h-40 overflow-y-auto">
+                                                                                            {addressSuggestions.map((feature: any) => (
+                                                                                                <button
+                                                                                                    key={feature.id}
+                                                                                                    onClick={() => selectAddress(feature)}
+                                                                                                    className="w-full text-left px-4 py-2 hover:bg-white/5 text-xs font-medium border-b border-white/5 last:border-0 flex items-center gap-2"
+                                                                                                >
+                                                                                                    <span className="truncate">{feature.place_name}</span>
+                                                                                                </button>
+                                                                                            ))}
+                                                                                            <div className="fixed inset-0 z-[-1]" onClick={() => setShowAddressSuggestions(false)}></div>
+                                                                                        </div>
+                                                                                    )}
                                                                                 </div>
-                                                                            ))}
+                                                                            )}
                                                                         </div>
 
-                                                                        <div className="flex gap-2">
-                                                                            <input
-                                                                                type="text"
-                                                                                placeholder="Ajouter une tâche..."
-                                                                                value={newChecklistItem}
-                                                                                onChange={e => setNewChecklistItem(e.target.value)}
-                                                                                className="flex-1 bg-dark-800 border border-white/5 rounded-xl h-[42px] px-4 text-sm text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
-                                                                                onKeyDown={e => e.key === 'Enter' && handleAddChecklistItem()}
+                                                                        {/* Checklist (Restored) */}
+                                                                        <div className="space-y-4 pt-4 border-t border-white/5">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <CheckSquare size={16} className="text-brand-500" />
+                                                                                <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Checklist</h4>
+                                                                            </div>
+
+                                                                            {/* Liste des tâches */}
+                                                                            <div className="space-y-2 mb-4">
+                                                                                {checklistItems.filter(item => item.card_id === card.id).map((item) => (
+                                                                                    <div key={item.id} className="bg-dark-900 border border-white/5 rounded-xl p-3 flex items-center justify-between group animate-in slide-in-from-left-2 duration-300">
+                                                                                        <div className="flex items-center gap-3">
+                                                                                            <button
+                                                                                                onClick={() => handleToggleChecklist(item.id, item.is_completed)}
+                                                                                                className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${item.is_completed ? 'bg-green-500 border-green-500 text-white' : 'border-white/10 hover:border-brand-500/50'}`}
+                                                                                            >
+                                                                                                {item.is_completed && <Check size={12} />}
+                                                                                            </button>
+                                                                                            <span className={`text-xs font-bold ${item.is_completed ? 'line-through text-gray-600' : 'text-gray-300'}`}>
+                                                                                                {item.checklist_data?.label}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                        <button
+                                                                                            onClick={async () => {
+                                                                                                const { error } = await supabase.from('checklists').delete().eq('id', item.id);
+                                                                                                if (!error) setChecklistItems(prev => prev.filter(i => i.id !== item.id));
+                                                                                            }}
+                                                                                            className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-600 hover:text-red-500 transition-all"
+                                                                                        >
+                                                                                            <X size={14} />
+                                                                                        </button>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+
+                                                                            <div className="flex gap-2">
+                                                                                <input
+                                                                                    type="text"
+                                                                                    placeholder="Ajouter une tâche..."
+                                                                                    value={newChecklistItem}
+                                                                                    onChange={e => setNewChecklistItem(e.target.value)}
+                                                                                    className="flex-1 bg-dark-800 border border-white/5 rounded-xl h-[42px] px-4 text-sm text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
+                                                                                    onKeyDown={e => e.key === 'Enter' && handleAddChecklistItem()}
+                                                                                />
+                                                                                <button
+                                                                                    onClick={handleAddChecklistItem}
+                                                                                    className="w-[42px] h-[42px] flex items-center justify-center rounded-xl bg-brand-500 text-white hover:bg-brand-600 transition-all shadow-lg active:scale-95"
+                                                                                >
+                                                                                    <Plus size={18} />
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* Description */}
+                                                                        <div>
+                                                                            <textarea
+                                                                                rows={3}
+                                                                                value={editData.description}
+                                                                                onChange={e => setEditData({ ...editData, description: e.target.value })}
+                                                                                className="w-full bg-dark-800 border border-white/5 rounded-xl p-4 text-white focus:outline-none focus:border-brand-500 transition-all text-sm no-scrollbar resize-none placeholder:text-gray-600"
+                                                                                placeholder="Notes..."
                                                                             />
-                                                                            <button
-                                                                                onClick={handleAddChecklistItem}
-                                                                                className="w-[42px] h-[42px] flex items-center justify-center rounded-xl bg-brand-500 text-white hover:bg-brand-600 transition-all shadow-lg active:scale-95"
-                                                                            >
-                                                                                <Plus size={18} />
-                                                                            </button>
                                                                         </div>
-                                                                    </div>
 
-                                                                    {/* Description */}
-                                                                    <div>
-                                                                        <textarea
-                                                                            rows={3}
-                                                                            value={editData.description}
-                                                                            onChange={e => setEditData({ ...editData, description: e.target.value })}
-                                                                            className="w-full bg-dark-800 border border-white/5 rounded-xl p-4 text-white focus:outline-none focus:border-brand-500 transition-all text-sm no-scrollbar resize-none placeholder:text-gray-600"
-                                                                            placeholder="Notes..."
-                                                                        />
+                                                                        {/* Actions Footer REMOVED (Auto-save) */}
                                                                     </div>
-
-                                                                    {/* Actions Footer */}
-                                                                    {hasChanges && (
-                                                                        <div className="pt-4 border-t border-white/5 flex justify-end">
-                                                                            <button
-                                                                                onClick={handleUpdateCard}
-                                                                                className="h-10 px-6 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-lg text-[10px] font-black uppercase tracking-widest bg-orange-500 hover:bg-orange-600 text-white"
-                                                                            >
-                                                                                Enregistrer
-                                                                            </button>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </SortableCard>
-                                                    ))}
+                                                                )}
+                                                            </SortableCard>
+                                                        );
+                                                    })}
                                                 </SortableContext>
 
                                                 {/* Add Activity Card */}
