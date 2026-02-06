@@ -185,7 +185,7 @@ interface TripInvitation {
     token: string;
 }
 
-const SortableCard: React.FC<SortableCardProps & { onEdit: (card: Card) => void }> = ({ card, isLocked, onEdit, checklistCount = 0, isEditing, children }) => {
+const SortableCard: React.FC<SortableCardProps & { onEdit: (card: Card) => void }> = ({ card, isLocked, onEdit, checklistCount = 0, isEditing, children, onDelete }) => {
     const {
         attributes,
         listeners,
@@ -795,22 +795,52 @@ const TripEditor: React.FC = () => {
     };
 
 
-    const handleUpdateDayTitle = async (newTitle: string) => {
-        if (!currentDay || !isLockedByMe) return; // STRICT CHECK
+    // [NEW] Local state for smooth typing
+    const [localDayTitle, setLocalDayTitle] = useState<string | null>(null);
 
-        // Mise à jour optimiste de l'UI
-        setCurrentDay({ ...currentDay, title: newTitle });
-        setDays(prev => prev.map(d => d.id === currentDay.id ? { ...d, title: newTitle } : d));
-
-        const { error } = await supabase
-            .from('trip_days')
-            .update({ title: newTitle })
-            .eq('id', currentDay.id);
-
-        if (error) {
-            console.error("Error updating day title:", error);
-            // Optionnel : rollback en cas d'erreur
+    // Sync local state when currentDay changes (and not editing)
+    useEffect(() => {
+        if (currentDay) {
+            setLocalDayTitle(currentDay.title);
         }
+    }, [currentDay?.id, currentDay?.title]);
+
+    const debouncedSaveTitle = useCallback(
+        (dayId: string, newTitle: string) => {
+            const timer = setTimeout(async () => {
+                const { error } = await supabase
+                    .from('trip_days')
+                    .update({ title: newTitle })
+                    .eq('id', dayId);
+                if (error) console.error("Error saving title:", error);
+            }, 1000);
+            return () => clearTimeout(timer);
+        },
+        []
+    );
+
+    // [NEW] Ref for cleanup
+    const saveTitleTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+    const handleUpdateDayTitle = (newTitle: string) => {
+        if (!currentDay || !isLockedByMe) return;
+
+        // 1. Update Local UI immediately
+        setLocalDayTitle(newTitle);
+        // Optimistic update for other components
+        setDays(prev => prev.map(d => d.id === currentDay.id ? { ...d, title: newTitle } : d));
+        setCurrentDay(prev => prev ? { ...prev, title: newTitle } : null);
+
+        // 2. Debounced Save
+        if (saveTitleTimeoutRef.current) clearTimeout(saveTitleTimeoutRef.current);
+
+        saveTitleTimeoutRef.current = setTimeout(async () => {
+            const { error } = await supabase
+                .from('trip_days')
+                .update({ title: newTitle })
+                .eq('id', currentDay.id);
+            if (error) console.error("Error updating day title:", error);
+        }, 1000);
     };
 
     const handleDeleteDay = async () => {
@@ -966,6 +996,18 @@ const TripEditor: React.FC = () => {
 
 
     // [REFACTORED] Updated to support Auto-Save and stay in edit mode
+    // [MOVED] hasChanges must be defined before use in useEffect/callbacks to avoid ReferenceError
+    const hasChanges = editingCard && (
+        editData.title !== editingCard.title ||
+        editData.description !== editingCard.description ||
+        editData.location_text !== (editingCard.location_text || '') ||
+        editData.end_location_text !== (editingCard.end_location_text || '') ||
+        editData.website_url !== (editingCard.website_url || '') ||
+        editData.start_time !== (editingCard.start_time?.slice(0, 5) || '') ||
+        editData.end_time !== (editingCard.end_time?.slice(0, 5) || '') ||
+        editData.type !== editingCard.type
+    );
+
     const saveCard = useCallback(async (shouldClose: boolean = false) => {
         if (!editingCard || !tripId || !currentDay || !user) return;
 
@@ -1494,16 +1536,17 @@ const TripEditor: React.FC = () => {
     const allDaysLocked = days.length > 0 && days.every(d => d.status === 'locked');
     const isPreparationValidated = checklistItems.length > 0 && checklistItems.every(i => i.is_completed);
 
-    const hasChanges = !!editingCard && (
-        editData.title !== editingCard.title ||
-        editData.description !== (editingCard.description || '') ||
-        editData.location_text !== (editingCard.location_text || '') ||
-        editData.end_location_text !== (editingCard.end_location_text || '') ||
-        editData.website_url !== (editingCard.website_url || '') ||
-        editData.start_time !== (editingCard.start_time?.slice(0, 5) || '') ||
-        editData.end_time !== (editingCard.end_time?.slice(0, 5) || '') ||
-        editData.type !== editingCard.type
-    );
+    // [MOVED] hasChanges calculation moved to top to fix ReferenceError
+    // const hasChanges = !!editingCard && (
+    //     editData.title !== editingCard.title ||
+    //     editData.description !== (editingCard.description || '') ||
+    //     editData.location_text !== (editingCard.location_text || '') ||
+    //     editData.end_location_text !== (editingCard.end_location_text || '') ||
+    //     editData.website_url !== (editingCard.website_url || '') ||
+    //     editData.start_time !== (editingCard.start_time?.slice(0, 5) || '') ||
+    //     editData.end_time !== (editingCard.end_time?.slice(0, 5) || '') ||
+    //     editData.type !== editingCard.type
+    // );
 
     return (
         <div className="min-h-screen bg-dark-900 text-white pb-40 overflow-x-hidden">
@@ -1702,11 +1745,14 @@ const TripEditor: React.FC = () => {
                                         <div className="flex items-center gap-3">
                                             <input
                                                 type="text"
-                                                value={currentDay?.title || ''}
+                                                value={localDayTitle ?? currentDay?.title ?? ''}
                                                 placeholder={`Journée ${activeDayIndex}`}
                                                 onChange={(e) => handleUpdateDayTitle(e.target.value)}
                                                 disabled={!isLockedByMe}
-                                                className={`bg-transparent border-none text-xl md:text-2xl font-black focus:ring-0 p-0 w-full transition-colors ${isLockedByMe ? 'text-white/90 hover:text-white placeholder:text-white/20' : 'text-gray-500 cursor-not-allowed'}`}
+                                                className={`bg-transparent border-none text-xl md:text-2xl font-black focus:ring-0 p-0 w-full transition-colors ${isLockedByMe
+                                                    ? 'text-white/90 hover:text-white placeholder:text-white/20'
+                                                    : 'text-white cursor-default' // [FIX] Removed gray/opacity for clear reading
+                                                    }`}
                                             />
                                         </div>
                                         <div className="flex items-center gap-3 text-[11px] font-bold text-gray-400">
@@ -1976,52 +2022,23 @@ const TripEditor: React.FC = () => {
 
                                                                         {/* Location */}
                                                                         <div className="space-y-4">
-                                                                            <div className="relative">
-                                                                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
-                                                                                <input
-                                                                                    type="text"
-                                                                                    placeholder={editData.type === 'transport' ? "Départ..." : "Lieu..."}
-                                                                                    value={editData.location_text}
-                                                                                    onChange={e => handleAddressSearch(e.target.value, 'start')}
-                                                                                    onFocus={() => {
-                                                                                        setActiveAddressField('start');
-                                                                                        if (editData.location_text.length > 2) setShowAddressSuggestions(true);
-                                                                                    }}
-                                                                                    className="w-full bg-dark-800 border border-white/5 rounded-xl h-[42px] pl-10 pr-4 text-white text-sm focus:outline-none focus:border-brand-500 transition-all font-bold"
-                                                                                />
-                                                                                {/* Suggestions (Simplified for inline) */}
-                                                                                {showAddressSuggestions && activeAddressField === 'start' && addressSuggestions.length > 0 && (
-                                                                                    <div className="absolute top-full left-0 right-0 mt-2 bg-dark-900 border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden max-h-40 overflow-y-auto">
-                                                                                        {addressSuggestions.map((feature: any) => (
-                                                                                            <button
-                                                                                                key={feature.id}
-                                                                                                onClick={() => selectAddress(feature)}
-                                                                                                className="w-full text-left px-4 py-2 hover:bg-white/5 text-xs font-medium border-b border-white/5 last:border-0 flex items-center gap-2"
-                                                                                            >
-                                                                                                <span className="truncate">{feature.place_name}</span>
-                                                                                            </button>
-                                                                                        ))}
-                                                                                        <div className="fixed inset-0 z-[-1]" onClick={() => setShowAddressSuggestions(false)}></div>
-                                                                                    </div>
-                                                                                )}
-                                                                            </div>
-
-                                                                            {editData.type === 'transport' && (
+                                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                                                 <div className="relative">
-                                                                                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-500" size={14} />
+                                                                                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
                                                                                     <input
                                                                                         type="text"
-                                                                                        placeholder="Arrivée..."
-                                                                                        value={editData.end_location_text}
-                                                                                        onChange={e => handleAddressSearch(e.target.value, 'end')}
+                                                                                        placeholder={editData.type === 'transport' ? "Départ..." : "Lieu..."}
+                                                                                        value={editData.location_text}
+                                                                                        onChange={e => handleAddressSearch(e.target.value, 'start')}
                                                                                         onFocus={() => {
-                                                                                            setActiveAddressField('end');
-                                                                                            if (editData.end_location_text.length > 2) setShowAddressSuggestions(true);
+                                                                                            setActiveAddressField('start');
+                                                                                            if (editData.location_text.length > 2) setShowAddressSuggestions(true);
                                                                                         }}
                                                                                         className="w-full bg-dark-800 border border-white/5 rounded-xl h-[42px] pl-10 pr-4 text-white text-sm focus:outline-none focus:border-brand-500 transition-all font-bold"
                                                                                     />
-                                                                                    {showAddressSuggestions && activeAddressField === 'end' && addressSuggestions.length > 0 && (
-                                                                                        <div className="absolute top-full left-0 right-0 mt-2 bg-dark-900 border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden max-h-40 overflow-y-auto">
+                                                                                    {/* Suggestions (Simplified for inline) */}
+                                                                                    {showAddressSuggestions && activeAddressField === 'start' && addressSuggestions.length > 0 && (
+                                                                                        <div className="absolute top-full left-0 right-0 mt-2 bg-dark-900 border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden max-h-40 overflow-y-auto z-10">
                                                                                             {addressSuggestions.map((feature: any) => (
                                                                                                 <button
                                                                                                     key={feature.id}
@@ -2035,7 +2052,38 @@ const TripEditor: React.FC = () => {
                                                                                         </div>
                                                                                     )}
                                                                                 </div>
-                                                                            )}
+
+                                                                                {editData.type === 'transport' && (
+                                                                                    <div className="relative">
+                                                                                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-500" size={14} />
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            placeholder="Arrivée..."
+                                                                                            value={editData.end_location_text}
+                                                                                            onChange={e => handleAddressSearch(e.target.value, 'end')}
+                                                                                            onFocus={() => {
+                                                                                                setActiveAddressField('end');
+                                                                                                if (editData.end_location_text.length > 2) setShowAddressSuggestions(true);
+                                                                                            }}
+                                                                                            className="w-full bg-dark-800 border border-white/5 rounded-xl h-[42px] pl-10 pr-4 text-white text-sm focus:outline-none focus:border-brand-500 transition-all font-bold"
+                                                                                        />
+                                                                                        {showAddressSuggestions && activeAddressField === 'end' && addressSuggestions.length > 0 && (
+                                                                                            <div className="absolute top-full left-0 right-0 mt-2 bg-dark-900 border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden max-h-40 overflow-y-auto z-10">
+                                                                                                {addressSuggestions.map((feature: any) => (
+                                                                                                    <button
+                                                                                                        key={feature.id}
+                                                                                                        onClick={() => selectAddress(feature)}
+                                                                                                        className="w-full text-left px-4 py-2 hover:bg-white/5 text-xs font-medium border-b border-white/5 last:border-0 flex items-center gap-2"
+                                                                                                    >
+                                                                                                        <span className="truncate">{feature.place_name}</span>
+                                                                                                    </button>
+                                                                                                ))}
+                                                                                                <div className="fixed inset-0 z-[-1]" onClick={() => setShowAddressSuggestions(false)}></div>
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
                                                                         </div>
 
                                                                         {/* Checklist (Restored) */}
