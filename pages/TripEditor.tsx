@@ -1668,9 +1668,9 @@ const TripEditor: React.FC = () => {
                                             {isLockedBySomeoneElse ? (
                                                 <span className="flex items-center gap-1.5 text-orange-400 animate-pulse">
                                                     <Lock size={11} />
-                                                    Édité par {editingUser?.username || 'un utilisateur'}
+                                                    En cours de modification par {editingUser?.username || 'un utilisateur'}
                                                     {isOwner && (
-                                                        <button onClick={handleForceUnlock} className="ml-1 underline text-[9px] text-red-400 hover:text-red-300">Forcer</button>
+                                                        <button onClick={handleForceUnlock} className="ml-1 underline text-[9px] text-red-400 hover:text-red-300">Récupérer les droits</button>
                                                     )}
                                                 </span>
                                             ) : isLockedByMe ? (
@@ -1705,7 +1705,7 @@ const TripEditor: React.FC = () => {
                                                     className={`h-9 px-4 rounded-xl flex items-center gap-2 transition-all active:scale-95 text-[10px] font-black uppercase tracking-widest ${isLockedBySomeoneElse ? 'bg-dark-700 text-gray-600 cursor-not-allowed opacity-50' : 'bg-brand-500 text-white hover:bg-brand-600'}`}
                                                 >
                                                     {isLockedBySomeoneElse ? <Lock size={14} /> : <Pencil size={14} />}
-                                                    <span className="hidden sm:inline">{isLockedBySomeoneElse ? 'En cours...' : 'Organiser'}</span>
+                                                    <span className="hidden sm:inline">{isLockedBySomeoneElse ? 'En cours de modification...' : 'Organiser'}</span>
                                                 </button>
                                             )
                                         )}
@@ -1714,7 +1714,7 @@ const TripEditor: React.FC = () => {
                                         {canEditGlobal && !isLockedByMe && !isLockedBySomeoneElse && (
                                             <div className="flex items-center gap-3 bg-dark-900/40 rounded-full px-3 py-1.5 border border-white/5">
                                                 <span className={`text-[10px] font-bold uppercase tracking-wider transition-colors ${currentDay?.status === 'locked' ? 'text-green-400' : 'text-gray-500'}`}>
-                                                    {currentDay?.status === 'locked' ? 'Validé' : 'Brouillon'}
+                                                    {currentDay?.status === 'locked' ? 'Validé' : 'En préparation'}
                                                 </span>
                                                 <button
                                                     onClick={async () => {
