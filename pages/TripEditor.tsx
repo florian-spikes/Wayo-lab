@@ -572,11 +572,46 @@ const TripEditor: React.FC = () => {
             .subscribe();
 
 
+        // Subscribe to Checklists (Counter updates)
+        const checklistsChannel = supabase
+            .channel('trip_checklists_realtime')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'checklists',
+                    filter: `trip_id=eq.${tripId}`
+                },
+                (payload) => {
+                    const eventType = payload.eventType;
+                    const newRecord = payload.new as ChecklistItem;
+                    const oldRecord = payload.old as { id: string };
+
+                    setChecklistItems(prev => {
+                        if (eventType === 'INSERT') {
+                            if (prev.find(i => i.id === newRecord.id)) return prev;
+                            return [...prev, newRecord];
+                        }
+                        if (eventType === 'UPDATE') {
+                            return prev.map(i => i.id === newRecord.id ? { ...i, ...newRecord } : i);
+                        }
+                        if (eventType === 'DELETE') {
+                            return prev.filter(i => i.id !== oldRecord.id);
+                        }
+                        return prev;
+                    });
+                }
+            )
+            .subscribe();
+
+
         return () => {
             supabase.removeChannel(daysChannel);
             supabase.removeChannel(tripChannel);
             supabase.removeChannel(cardChannel);
             supabase.removeChannel(membersChannel);
+            supabase.removeChannel(checklistsChannel);
         };
     }, [tripId]);
 
