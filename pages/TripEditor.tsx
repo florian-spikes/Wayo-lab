@@ -1728,21 +1728,23 @@ const TripEditor: React.FC = () => {
                                             <CardSkeleton />
                                         </div>
                                     ) : cards.length === 0 ? (
-                                        <button
-                                            onClick={handleDirectAddCard}
-                                            disabled={!isLockedByMe}
-                                            className={`ml-8 w-[calc(100%-2rem)] bg-dark-900/40 border-2 border-dashed border-white/10 rounded-2xl py-12 flex flex-col items-center justify-center gap-3 transition-all group ${isLockedByMe ? 'hover:border-brand-500/30 hover:bg-brand-500/5 cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
-                                        >
-                                            <div className="w-12 h-12 rounded-xl bg-dark-800 border border-white/10 flex items-center justify-center text-gray-500 group-hover:scale-110 group-hover:border-brand-500/30 group-hover:text-brand-500 transition-all">
-                                                <Plus size={24} />
-                                            </div>
-                                            <div className="text-center">
-                                                <p className="text-gray-400 font-bold text-sm mb-1">Rien de prévu</p>
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-brand-500/50 group-hover:text-brand-500 transition-colors">
-                                                    {isLockedByMe ? 'Ajouter votre première étape' : 'Cliquez sur "Organiser"'}
-                                                </p>
-                                            </div>
-                                        </button>
+                                        <div className="relative pl-10 w-full">
+                                            <button
+                                                onClick={handleDirectAddCard}
+                                                disabled={!isLockedByMe}
+                                                className={`w-full bg-dark-900/40 border-2 border-dashed border-white/10 rounded-2xl py-12 flex flex-col items-center justify-center gap-3 transition-all group ${isLockedByMe ? 'hover:border-brand-500/30 hover:bg-brand-500/5 cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
+                                            >
+                                                <div className="w-12 h-12 rounded-xl bg-dark-800 border border-white/10 flex items-center justify-center text-gray-500 group-hover:scale-110 group-hover:border-brand-500/30 group-hover:text-brand-500 transition-all">
+                                                    <Plus size={24} />
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-gray-400 font-bold text-sm mb-1">Rien de prévu</p>
+                                                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-500/50 group-hover:text-brand-500 transition-colors">
+                                                        {isLockedByMe ? 'Ajouter votre première étape' : 'Cliquez sur "Organiser"'}
+                                                    </p>
+                                                </div>
+                                            </button>
+                                        </div>
                                     ) : (
                                         <DndContext
                                             sensors={sensors}
@@ -1768,15 +1770,17 @@ const TripEditor: React.FC = () => {
 
                                                 {/* Add Activity Card */}
                                                 {isLockedByMe && (
-                                                    <button
-                                                        onClick={handleDirectAddCard}
-                                                        className="w-full bg-dark-900/40 border-2 border-dashed border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group"
-                                                    >
-                                                        <div className="w-10 h-10 rounded-xl bg-dark-800 border border-white/10 flex items-center justify-center text-gray-500 group-hover:scale-110 group-hover:border-brand-500/30 group-hover:text-brand-500 transition-all">
-                                                            <Plus size={20} />
-                                                        </div>
-                                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-brand-500 transition-colors">Ajouter une étape</span>
-                                                    </button>
+                                                    <div className="relative pl-10">
+                                                        <button
+                                                            onClick={handleDirectAddCard}
+                                                            className="w-full bg-dark-900/40 border-2 border-dashed border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group"
+                                                        >
+                                                            <div className="w-10 h-10 rounded-xl bg-dark-800 border border-white/10 flex items-center justify-center text-gray-500 group-hover:scale-110 group-hover:border-brand-500/30 group-hover:text-brand-500 transition-all">
+                                                                <Plus size={20} />
+                                                            </div>
+                                                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-brand-500 transition-colors">Ajouter une étape</span>
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </div>
                                         </DndContext>
@@ -2140,7 +2144,7 @@ const TripEditor: React.FC = () => {
                                             type="text"
                                             value={editData.title}
                                             onChange={e => setEditData({ ...editData, title: e.target.value })}
-                                            className="w-full bg-dark-800 border border-white/5 rounded-2xl h-[50px] px-6 text-xl font-black text-white focus:outline-none focus:border-brand-500 focus:bg-dark-800/80 transition-all placeholder:text-white/10"
+                                            className="w-full bg-dark-800 border border-white/5 rounded-2xl h-[50px] px-4 text-lg font-black text-white focus:outline-none focus:border-brand-500 transition-all placeholder:text-white/10"
                                             placeholder="Nommez votre moment..."
                                         />
                                     </div>
@@ -2166,7 +2170,7 @@ const TripEditor: React.FC = () => {
                                                             }
                                                             setEditData({ ...editData, start_time: start, end_time: end });
                                                         }}
-                                                        className="w-full bg-dark-900 border border-white/5 rounded-2xl h-[50px] pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
+                                                        className="w-full bg-dark-800 border border-white/5 rounded-2xl h-[50px] pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
                                                     />
                                                 </div>
                                             </div>
@@ -2180,7 +2184,7 @@ const TripEditor: React.FC = () => {
                                                             type="time"
                                                             value={editData.end_time}
                                                             onChange={e => setEditData({ ...editData, end_time: e.target.value })}
-                                                            className="w-full bg-dark-900 border border-brand-500/50 rounded-2xl h-[50px] px-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold animate-in fade-in duration-300"
+                                                            className="w-full bg-dark-800 border border-brand-500/50 rounded-2xl h-[50px] px-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold animate-in fade-in duration-300"
                                                         />
                                                     ) : (
                                                         <div className="h-[50px] flex items-center px-4 bg-dark-950/50 rounded-2xl border border-white/5 text-gray-500 font-black text-lg">
@@ -2240,7 +2244,7 @@ const TripEditor: React.FC = () => {
                                                         const end = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
                                                         setEditData({ ...editData, duration: val, end_time: end });
                                                     }}
-                                                    className="w-full bg-dark-900 border border-white/5 rounded-2xl h-[50px] px-4 text-white font-bold appearance-none focus:outline-none focus:border-brand-500"
+                                                    className="w-full bg-dark-800 border border-white/5 rounded-2xl h-[50px] px-4 text-white font-bold appearance-none focus:outline-none focus:border-brand-500"
                                                 >
                                                     <option value={30}>30 minutes</option>
                                                     <option value={60}>1 heure</option>
@@ -2271,7 +2275,7 @@ const TripEditor: React.FC = () => {
                                                         setActiveAddressField('start');
                                                         if (editData.location_text.length > 2) setShowAddressSuggestions(true);
                                                     }}
-                                                    className={`w-full bg-dark-800 border border-white/5 rounded-2xl h-[50px] pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold ${editData.type === 'transport' ? 'rounded-b-sm border-b-none' : ''}`}
+                                                    className="w-full bg-dark-800 border border-white/5 rounded-2xl h-[50px] pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
                                                 />
 
                                                 {/* Suggestions for Start */}
