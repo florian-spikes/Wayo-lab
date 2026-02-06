@@ -1383,7 +1383,11 @@ const TripEditor: React.FC = () => {
                             >
                                 <span className="text-[9px] font-black uppercase opacity-60">J{day.day_index}</span>
                                 <span className="text-base font-black">{day.date ? new Date(day.date).getDate() : '-'}</span>
-                                {day.status === 'locked' && (
+                                {day.edited_by ? (
+                                    <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center border-2 border-dark-900 bg-brand-500 text-white animate-pulse`}>
+                                        <Lock size={6} strokeWidth={4} />
+                                    </div>
+                                ) : day.status === 'locked' && (
                                     <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center border-2 border-dark-900 ${day.day_index === activeDayIndex ? 'bg-dark-900 text-white' : 'bg-green-500 text-white'}`}>
                                         <Check size={6} strokeWidth={4} />
                                     </div>
@@ -1465,8 +1469,8 @@ const TripEditor: React.FC = () => {
                                                     onClick={handleReleaseLock}
                                                     className="h-9 px-4 rounded-xl flex items-center gap-2 transition-all active:scale-95 text-[10px] font-black uppercase tracking-widest bg-green-500 text-white hover:bg-green-600"
                                                 >
-                                                    <Save size={14} />
-                                                    <span className="hidden sm:inline">Enregistrer</span>
+                                                    <Check size={14} />
+                                                    <span className="hidden sm:inline">Quitter l'édition</span>
                                                 </button>
                                             ) : (
                                                 <button
@@ -1475,7 +1479,7 @@ const TripEditor: React.FC = () => {
                                                     className={`h-9 px-4 rounded-xl flex items-center gap-2 transition-all active:scale-95 text-[10px] font-black uppercase tracking-widest ${isLockedBySomeoneElse ? 'bg-dark-700 text-gray-600 cursor-not-allowed opacity-50' : 'bg-brand-500 text-white hover:bg-brand-600'}`}
                                                 >
                                                     {isLockedBySomeoneElse ? <Lock size={14} /> : <CheckSquare size={14} />}
-                                                    <span className="hidden sm:inline">{isLockedBySomeoneElse ? 'Verrouillé' : 'Modifier'}</span>
+                                                    <span className="hidden sm:inline">{isLockedBySomeoneElse ? 'En cours d\'édition' : 'Modifier les évènements'}</span>
                                                 </button>
                                             )
                                         )}
@@ -1494,9 +1498,35 @@ const TripEditor: React.FC = () => {
                                 </div>
                             </div>
 
+                            {/* Bannière Mode Édition */}
+                            {canEditGlobal && (isLockedByMe || isLockedBySomeoneElse) && (
+                                <div className={`mx-5 md:mx-6 mt-4 p-3 rounded-2xl border flex items-center gap-3 transition-all ${isLockedByMe
+                                        ? 'bg-green-500/10 border-green-500/20 text-green-400'
+                                        : 'bg-orange-500/10 border-orange-500/20 text-orange-400'
+                                    }`}>
+                                    {isLockedByMe ? (
+                                        <>
+                                            <CheckCircle2 size={16} />
+                                            <div className="flex-1">
+                                                <p className="text-xs font-bold">Mode édition actif</p>
+                                                <p className="text-[10px] opacity-70">Réorganisez et modifiez les étapes</p>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Lock size={16} className="animate-pulse" />
+                                            <div className="flex-1">
+                                                <p className="text-xs font-bold">{editingUser?.username || 'Un utilisateur'} modifie cette journée</p>
+                                                <p className="text-[10px] opacity-70">Vous pourrez modifier quand il aura terminé</p>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Timeline Content */}
                             <div className="p-5 md:p-6">
-                                <div className="relative before:absolute before:left-3 before:top-0 before:bottom-0 before:w-0.5 before:bg-brand-500/20 before:rounded-full">
+                                <div className="relative before:absolute before:left-[25px] before:top-0 before:bottom-0 before:w-0.5 before:bg-brand-500/20 before:rounded-full">
                                     {isDayLoading ? (
                                         <div className="space-y-4 pl-8">
                                             <CardSkeleton />
