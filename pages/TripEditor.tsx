@@ -1078,17 +1078,21 @@ const TripEditor: React.FC = () => {
     const persistOrder = async (newCards: Card[]) => {
         const updates = newCards.map((card, index) => ({
             id: card.id,
-            order_index: index
+            trip_id: card.trip_id,  // [FIX] Required for RLS/Constraints
+            day_id: card.day_id,    // [FIX] Required for RLS/Constraints
+            order_index: index,
+            updated_at: new Date().toISOString()
         }));
 
-        // Upsert order_index changes in batch
+        // Upsert est safe ici car on fournit les IDs
         const { error } = await supabase
             .from('cards')
             .upsert(updates, { onConflict: 'id' });
 
         if (error) {
             console.error("Error persisting order:", error);
-            // Optional: fallback to previous state if error
+            // Revert optimistic update if needed (ideal world)
+            console.error("Failed to save order");
         }
     };
 
@@ -1515,8 +1519,8 @@ const TripEditor: React.FC = () => {
                                                     }
                                                 }}
                                                 className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all group border ${currentDay?.status === 'locked'
-                                                        ? 'border-green-500 bg-green-500/10 text-green-400 hover:bg-green-500/20'
-                                                        : 'border-white/10 bg-dark-700 text-gray-500 hover:border-green-500/50 hover:text-green-400'
+                                                    ? 'border-green-500 bg-green-500/10 text-green-400 hover:bg-green-500/20'
+                                                    : 'border-white/10 bg-dark-700 text-gray-500 hover:border-green-500/50 hover:text-green-400'
                                                     }`}
                                                 title={currentDay?.status === 'locked' ? 'Journée validée' : 'Valider la journée'}
                                             >
