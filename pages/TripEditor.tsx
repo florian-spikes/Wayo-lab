@@ -361,7 +361,7 @@ const TripEditor: React.FC = () => {
     const [cards, setCards] = useState<Card[]>([]);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [isDayLoading, setIsDayLoading] = useState(false);
-    const [showAddSheet, setShowAddSheet] = useState(false);
+    const [isCreating, setIsCreating] = useState(false);
     const [activeTab, setActiveTab] = useState<'itineraire' | 'preparation' | 'carnet'>('itineraire');
 
     const [editingCard, setEditingCard] = useState<Card | null>(null);
@@ -932,6 +932,7 @@ const TripEditor: React.FC = () => {
         if (!error && data) {
             setCards(prev => prev.map(c => c.id === data.id ? data : c));
             setEditingCard(null);
+            setIsCreating(false);
         }
     };
 
@@ -952,7 +953,8 @@ const TripEditor: React.FC = () => {
         });
     };
 
-    const openEdit = (card: Card) => {
+    const openEdit = (card: Card, isNew: boolean = false) => {
+        setIsCreating(isNew);
 
         // Calculer la durée initiale en minutes si les deux heures existent
         let initialDuration: number | 'custom' = 60; // Default to 60 minutes
@@ -978,6 +980,63 @@ const TripEditor: React.FC = () => {
             duration: initialDuration,
             type: card.type
         });
+
+        setShowIconSelect(false);
+    };
+
+    const handleDirectAddCard = async () => {
+        if (!tripId || !currentDay) return;
+
+        // Create a default card with Type 'Activité'
+        const newCardData = {
+            trip_id: tripId,
+            day_id: currentDay.id,
+            type: 'Activité',
+            title: '', // Empty title to force focus
+            description: '',
+            order_index: cards.length,
+            start_time: null,
+            end_time: null,
+            location_text: '',
+            end_location_text: null,
+            website_url: null,
+            created_by: user?.id
+        };
+
+        // Optimistic UI Update (Temporary ID)
+        const tempId = `temp-${Date.now()}`;
+        const tempCard = { ...newCardData, id: tempId } as Card;
+
+        setCards(prev => [...prev, tempCard]);
+
+        const { data, error } = await supabase
+            .from('cards')
+            .insert([newCardData])
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating card:', error);
+            // Revert optimistic update
+            setCards(prev => prev.filter(c => c.id !== tempId));
+            return;
+        }
+
+        if (data) {
+            // Replace temp card with real one
+            setCards(prev => prev.map(c => c.id === tempId ? data : c));
+            // Open Edit Immediately
+            openEdit(data, true);
+        }
+    };
+
+    const handleCancelEdit = async () => {
+        if (isCreating && editingCard) {
+            // If we were creating a new card and cancelled, delete it
+            await handleDeleteCard(editingCard.id);
+        }
+        setEditingCard(null);
+        setIsCreating(false);
     };
 
     useEffect(() => {
@@ -1231,29 +1290,6 @@ const TripEditor: React.FC = () => {
         if (!error) {
             setCurrentDay({ ...currentDay, status: newStatus });
             setDays(prev => prev.map(d => d.id === currentDay.id ? { ...d, status: newStatus } : d));
-        }
-    };
-
-    const handleAddCard = async (type: string) => {
-        if (!currentDay || !tripId || !user) return;
-
-        const newCard = {
-            trip_id: tripId,
-            day_id: currentDay.id,
-            type,
-            title: `Nouveau ${type}`,
-            description: '',
-            order_index: cards.length,
-            start_time: '10:00:00',
-            end_time: '11:00:00',
-            created_by: user.id,
-            source: 'manual'
-        };
-
-        const { data, error } = await supabase.from('cards').insert(newCard).select().single();
-        if (!error && data) {
-            setCards([...cards, data]);
-            setShowAddSheet(false);
         }
     };
 
@@ -1661,7 +1697,7 @@ const TripEditor: React.FC = () => {
                                         </div>
                                     ) : cards.length === 0 ? (
                                         <button
-                                            onClick={() => isLockedByMe && setShowAddSheet(true)}
+                                            onClick={handleDirectAddCard}
                                             disabled={!isLockedByMe}
                                             className={`ml-8 w-[calc(100%-2rem)] bg-dark-900/40 border-2 border-dashed border-white/10 rounded-2xl py-12 flex flex-col items-center justify-center gap-3 transition-all group ${isLockedByMe ? 'hover:border-brand-500/30 hover:bg-brand-500/5 cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
                                         >
@@ -1701,7 +1737,7 @@ const TripEditor: React.FC = () => {
                                                 {/* Add Activity Card */}
                                                 {isLockedByMe && (
                                                     <button
-                                                        onClick={() => setShowAddSheet(true)}
+                                                        onClick={handleDirectAddCard}
                                                         className="w-full bg-dark-900/40 border-2 border-dashed border-white/10 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 hover:border-brand-500/30 hover:bg-brand-500/5 transition-all group"
                                                     >
                                                         <div className="w-10 h-10 rounded-xl bg-dark-800 border border-white/10 flex items-center justify-center text-gray-500 group-hover:scale-110 group-hover:border-brand-500/30 group-hover:text-brand-500 transition-all">
@@ -1968,41 +2004,7 @@ const TripEditor: React.FC = () => {
                 )
             }
 
-            {/* Add Moment Sheet */}
-            {
-                showAddSheet && (
-                    <div className="fixed inset-0 z-[100] flex items-end justify-center px-4">
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setShowAddSheet(false)}></div>
-                        <div className="relative bg-dark-800 border border-white/10 rounded-t-[40px] p-8 pb-12 w-full max-w-xl shadow-2xl animate-in slide-in-from-bottom duration-300">
-                            <div className="w-12 h-1 bg-white/10 rounded-full mx-auto mb-8"></div>
-                            <h3 className="text-2xl font-black italic mb-8 flex items-center gap-3">
-                                <Plus className="text-brand-500" /> Quel type de moment ?
-                            </h3>
-
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                {[
-                                    { id: 'Activité', icon: <ActivityIcon />, color: 'text-blue-400' },
-                                    { id: 'Repas', icon: <Utensils />, color: 'text-orange-400' },
-                                    { id: 'Transport', icon: <Car />, color: 'text-purple-400' },
-                                    { id: 'Hébergement', icon: <Hotel />, color: 'text-green-400' },
-                                    { id: 'Note', icon: <FileText />, color: 'text-gray-400' }
-                                ].map(item => (
-                                    <button
-                                        key={item.id}
-                                        onClick={() => handleAddCard(item.id)}
-                                        className="p-5 bg-dark-900 rounded-3xl border border-white/5 hover:border-brand-500/30 transition-all flex flex-col items-center gap-3 group"
-                                    >
-                                        <div className={`w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-xl group-hover:scale-110 transition-transform ${item.color}`}>
-                                            {item.icon}
-                                        </div>
-                                        <span className="font-bold text-sm tracking-tight">{item.id}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
+            {/* Add Moment Sheet Logic Removed - Direct Create Implemented */}
 
             {/* Emoji Picker Modal */}
             {
@@ -2068,7 +2070,7 @@ const TripEditor: React.FC = () => {
                                         <Trash2 size={18} />
                                     </button>
                                     <button
-                                        onClick={() => setEditingCard(null)}
+                                        onClick={handleCancelEdit}
                                         className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
                                     >
                                         <X size={20} />
