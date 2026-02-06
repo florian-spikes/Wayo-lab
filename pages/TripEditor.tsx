@@ -115,6 +115,7 @@ interface Card {
     start_time: string | null;
     end_time: string | null;
     location_text: string | null;
+    end_location_text?: string | null; // [NEW] For Transport arrival
     website_url?: string | null;
 }
 
@@ -253,11 +254,20 @@ const SortableCard: React.FC<SortableCardProps & { onEdit: (card: Card) => void 
                                 {card.start_time?.slice(0, 5) || '??'}–{card.end_time?.slice(0, 5) || '??'}
                             </span>
                         )}
-                        {card.location_text && (
-                            <span className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 truncate max-w-[120px]">
+                        {card.type === 'Transport' && card.end_location_text ? (
+                            <span className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 truncate max-w-[200px]">
                                 <MapPin size={10} className="text-brand-500/70 shrink-0" />
                                 {card.location_text}
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+                                {card.end_location_text}
                             </span>
+                        ) : (
+                            card.location_text && (
+                                <span className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 truncate max-w-[120px]">
+                                    <MapPin size={10} className="text-brand-500/70 shrink-0" />
+                                    {card.location_text}
+                                </span>
+                            )
                         )}
                         {checklistCount > 0 && (
                             <span className="flex items-center gap-1 text-[10px] font-semibold text-brand-400">
@@ -360,6 +370,7 @@ const TripEditor: React.FC = () => {
         title: string;
         description: string;
         location_text: string;
+        end_location_text: string;
         website_url: string;
         start_time: string;
         end_time: string;
@@ -369,6 +380,7 @@ const TripEditor: React.FC = () => {
         title: '',
         description: '',
         location_text: '',
+        end_location_text: '',
         website_url: '',
         start_time: '',
         end_time: '',
@@ -379,9 +391,14 @@ const TripEditor: React.FC = () => {
     // Mapbox Autocomplete State
     const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
     const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+    const [activeAddressField, setActiveAddressField] = useState<'start' | 'end' | null>(null);
 
-    const handleAddressSearch = async (query: string) => {
-        setEditData(prev => ({ ...prev, location_text: query }));
+    const handleAddressSearch = async (query: string, field: 'start' | 'end') => {
+        setEditData(prev => ({
+            ...prev,
+            [field === 'start' ? 'location_text' : 'end_location_text']: query
+        }));
+        setActiveAddressField(field);
 
         if (query.length > 2) {
             try {
@@ -403,7 +420,11 @@ const TripEditor: React.FC = () => {
     };
 
     const selectAddress = (feature: any) => {
-        setEditData(prev => ({ ...prev, location_text: feature.place_name }));
+        if (!activeAddressField) return;
+        setEditData(prev => ({
+            ...prev,
+            [activeAddressField === 'start' ? 'location_text' : 'end_location_text']: feature.place_name
+        }));
         setShowAddressSuggestions(false);
     };
 
@@ -897,6 +918,7 @@ const TripEditor: React.FC = () => {
                 title: editData.title,
                 description: editData.description,
                 location_text: editData.location_text,
+                end_location_text: editData.type === 'Transport' ? editData.end_location_text : null,
                 website_url: editData.website_url || null,
                 start_time: editData.start_time || null,
                 end_time: editData.end_time || null,
@@ -949,6 +971,7 @@ const TripEditor: React.FC = () => {
             title: card.title,
             description: card.description || '',
             location_text: card.location_text || '',
+            end_location_text: card.end_location_text || '',
             website_url: card.website_url || '',
             start_time: card.start_time?.slice(0, 5) || '',
             end_time: card.end_time?.slice(0, 5) || '',
@@ -2055,37 +2078,24 @@ const TripEditor: React.FC = () => {
 
                             <div className="flex-1 overflow-y-auto p-8 space-y-8 no-scrollbar">
                                 {/* Type/Icon Selection Section */}
-                                <div className="flex flex-col items-center justify-center py-6">
-                                    <div className="relative">
-                                        <button
-                                            onClick={() => setShowIconSelect(!showIconSelect)}
-                                            className="w-16 h-16 bg-dark-800 rounded-3xl border border-white/5 flex items-center justify-center text-brand-500 shadow-inner hover:border-brand-500/30 transition-all ring-offset-4 ring-offset-dark-900 focus:ring-2 ring-brand-500/20"
-                                        >
-                                            {getTypeIcon(editData.type, 32)}
-                                        </button>
-
-                                        {/* Icon Picker Popover on Click */}
-                                        {showIconSelect && (
-                                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-4 z-50 animate-in zoom-in fade-in duration-200">
-                                                <div className="bg-dark-800 border border-white/10 rounded-2xl p-2 shadow-2xl flex gap-1 items-center whitespace-nowrap">
-                                                    {EVENT_TYPES.map(t => (
-                                                        <button
-                                                            key={t.id}
-                                                            onClick={() => {
-                                                                setEditData({ ...editData, type: t.id });
-                                                                setShowIconSelect(false);
-                                                            }}
-                                                            className={`p-2 rounded-lg transition-all ${editData.type === t.id ? 'bg-brand-500 text-white' : 'hover:bg-white/5 text-gray-500 hover:text-white'}`}
-                                                            title={t.label}
-                                                        >
-                                                            {React.cloneElement(t.icon as React.ReactElement, { size: 18 })}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
+                                {/* Type Selection - Grid Redesign */}
+                                <div className="space-y-4">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Quel type de moment ?</label>
+                                    <div className="grid grid-cols-4 gap-3">
+                                        {EVENT_TYPES.map(t => (
+                                            <button
+                                                key={t.id}
+                                                onClick={() => setEditData({ ...editData, type: t.id })}
+                                                className={`flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border transition-all duration-200 ${editData.type === t.id
+                                                    ? 'bg-brand-500 border-brand-400 text-white shadow-[0_4px_20px_rgba(249,115,22,0.3)] ring-2 ring-brand-500/20 scale-[1.02]'
+                                                    : 'bg-dark-800 border-white/5 text-gray-500 hover:bg-dark-700 hover:text-gray-300 hover:border-white/10'
+                                                    }`}
+                                            >
+                                                {React.cloneElement(t.icon as React.ReactElement, { size: 20 })}
+                                                <span className="text-[9px] font-black uppercase tracking-wide truncate w-full text-center">{t.label}</span>
+                                            </button>
+                                        ))}
                                     </div>
-                                    <span className="mt-4 text-[10px] font-black uppercase tracking-widest text-gray-500">Choisir le type d'étape</span>
                                 </div>
 
                                 <div className="space-y-6">
@@ -2209,21 +2219,29 @@ const TripEditor: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className="space-y-4">
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Lieu</label>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">
+                                            {editData.type === 'transport' ? 'DÉPART & ARRIVÉE' : 'LIEU'}
+                                        </label>
+
+                                        <div className="space-y-3">
+                                            {/* Input Départ (Toujours visible, change de label si transport) */}
                                             <div className="relative">
                                                 <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
                                                 <input
                                                     type="text"
-                                                    placeholder="Ex: Musée du Louvre"
+                                                    placeholder={editData.type === 'transport' ? "Lieu de départ..." : "Ex: Musée du Louvre"}
                                                     value={editData.location_text}
-                                                    onChange={e => handleAddressSearch(e.target.value)}
-                                                    onFocus={() => editData.location_text.length > 2 && setShowAddressSuggestions(true)}
-                                                    className="w-full bg-dark-800 border border-white/5 rounded-2xl h-[50px] pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
+                                                    onChange={e => handleAddressSearch(e.target.value, 'start')}
+                                                    onFocus={() => {
+                                                        setActiveAddressField('start');
+                                                        if (editData.location_text.length > 2) setShowAddressSuggestions(true);
+                                                    }}
+                                                    className={`w-full bg-dark-800 border border-white/5 rounded-2xl h-[50px] pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold ${editData.type === 'transport' ? 'rounded-b-sm border-b-none' : ''}`}
                                                 />
-                                                {/* Mapbox Suggestions Dropdown */}
-                                                {showAddressSuggestions && addressSuggestions.length > 0 && (
+
+                                                {/* Suggestions for Start */}
+                                                {showAddressSuggestions && activeAddressField === 'start' && addressSuggestions.length > 0 && (
                                                     <div className="absolute top-full left-0 right-0 mt-2 bg-dark-900 border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden max-h-48 overflow-y-auto">
                                                         {addressSuggestions.map((feature: any) => (
                                                             <button
@@ -2235,25 +2253,61 @@ const TripEditor: React.FC = () => {
                                                                 <span className="truncate">{feature.place_name}</span>
                                                             </button>
                                                         ))}
-                                                        {/* Backdrop to close */}
                                                         <div className="fixed inset-0 z-[-1]" onClick={() => setShowAddressSuggestions(false)}></div>
                                                     </div>
                                                 )}
                                             </div>
-                                        </div>
 
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Site Web</label>
-                                            <div className="relative">
-                                                <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
-                                                <input
-                                                    type="url"
-                                                    placeholder="https://..."
-                                                    value={editData.website_url}
-                                                    onChange={e => setEditData({ ...editData, website_url: e.target.value })}
-                                                    className="w-full bg-dark-800 border border-white/5 rounded-2xl h-[50px] pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold text-sm"
-                                                />
-                                            </div>
+                                            {/* Input Arrivée (Transport Only) */}
+                                            {editData.type === 'transport' && (
+                                                <div className="relative animate-in slide-in-from-top-2 duration-200">
+                                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col items-center">
+                                                        <div className="w-0.5 h-2 bg-gray-700 mb-1 absolute -top-4"></div>
+                                                        <MapPin className="text-brand-500" size={16} />
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Lieu d'arrivée..."
+                                                        value={editData.end_location_text}
+                                                        onChange={e => handleAddressSearch(e.target.value, 'end')}
+                                                        onFocus={() => {
+                                                            setActiveAddressField('end');
+                                                            if (editData.end_location_text.length > 2) setShowAddressSuggestions(true);
+                                                        }}
+                                                        className="w-full bg-dark-800 border border-white/5 rounded-2xl h-[50px] pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold"
+                                                    />
+                                                    {/* Suggestions for End */}
+                                                    {showAddressSuggestions && activeAddressField === 'end' && addressSuggestions.length > 0 && (
+                                                        <div className="absolute top-full left-0 right-0 mt-2 bg-dark-900 border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden max-h-48 overflow-y-auto">
+                                                            {addressSuggestions.map((feature: any) => (
+                                                                <button
+                                                                    key={feature.id}
+                                                                    onClick={() => selectAddress(feature)}
+                                                                    className="w-full text-left px-4 py-3 hover:bg-white/5 text-sm font-medium border-b border-white/5 last:border-0 transition-colors flex items-center gap-2"
+                                                                >
+                                                                    <MapPin size={12} className="text-brand-500 shrink-0" />
+                                                                    <span className="truncate">{feature.place_name}</span>
+                                                                </button>
+                                                            ))}
+                                                            <div className="fixed inset-0 z-[-1]" onClick={() => setShowAddressSuggestions(false)}></div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 ml-1">Site Web</label>
+                                        <div className="relative">
+                                            <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                                            <input
+                                                type="url"
+                                                placeholder="https://..."
+                                                value={editData.website_url}
+                                                onChange={e => setEditData({ ...editData, website_url: e.target.value })}
+                                                className="w-full bg-dark-800 border border-white/5 rounded-2xl h-[50px] pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all font-bold text-sm"
+                                            />
                                         </div>
                                     </div>
 
