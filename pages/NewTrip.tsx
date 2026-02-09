@@ -66,6 +66,12 @@ const NewTrip: React.FC = () => {
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [isDirty]);
 
+    // Track max step reached for header persistence
+    const [maxStepReached, setMaxStepReached] = useState(1);
+    useEffect(() => {
+        setMaxStepReached(prev => Math.max(prev, step));
+    }, [step]);
+
     const [formData, setFormData] = useState<TripData>({
         origin: '',
         destinations: [],
@@ -499,7 +505,7 @@ const NewTrip: React.FC = () => {
 
             // ... (keep cases 3, 4, 5, 7 as they were or update similarly if needed - assuming we keep them mostly as is but let's refresh their style slightly in next pass if needed, for now focusing on replacement targets)
 
-            case 3:
+            case 4:
                 return (
                     <div className="space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <div className="text-center space-y-1 md:space-y-2">
@@ -526,7 +532,7 @@ const NewTrip: React.FC = () => {
                         </div>
                     </div>
                 );
-            case 4:
+            case 3:
                 return (
                     <div className="space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <div className="text-center space-y-1 md:space-y-2">
@@ -691,21 +697,25 @@ const NewTrip: React.FC = () => {
                                         <span>{formData.participants} pers.</span>
                                     </div>
                                 )}
-                                {step > 3 && formData.budget && (
+                                {(maxStepReached > 4 || (step > 4 && formData.budget)) && (
                                     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-gray-300 whitespace-nowrap shrink-0">
-                                        <span className="text-brand-500 font-black">{formData.budget}</span>
+                                        <span className="text-brand-500 font-black">
+                                            {budgetLevels.find(b => b.id === formData.budget)?.label || formData.budget}
+                                        </span>
                                     </div>
                                 )}
-                                {step > 5 && formData.rhythm && (
+                                {(maxStepReached > 5 || (step > 5 && formData.rhythm)) && (
                                     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-gray-300 whitespace-nowrap shrink-0">
                                         <Activity size={13} className="text-brand-500" />
                                         <span>{formData.rhythm.split(' ')[1]}</span>
                                     </div>
                                 )}
-                                {step > 6 && formData.experiences.length > 0 && (
+                                {formData.experiences.length > 0 && (
                                     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-gray-300 whitespace-nowrap shrink-0">
                                         <Sparkles size={13} className="text-brand-500" />
-                                        <span>{formData.experiences.length} exp.</span>
+                                        <span className="truncate max-w-[200px]">
+                                            {formData.experiences.map(id => categories.find(c => c.id === id)?.name).join(', ')}
+                                        </span>
                                     </div>
                                 )}
                             </div>
