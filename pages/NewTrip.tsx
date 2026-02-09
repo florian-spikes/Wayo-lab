@@ -579,8 +579,8 @@ const NewTrip: React.FC = () => {
                 return (
                     <div className="space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <div className="text-center space-y-1 md:space-y-2">
-                            <h2 className="text-xl md:text-2xl font-black tracking-tight">Envies & Contraintes</h2>
-                            <p className="text-sm md:text-base text-gray-400">Une précision ? Un besoin spécifique ?</p>
+                            <h2 className="text-xl md:text-2xl font-black tracking-tight">Envies, Rêves & Contraintes</h2>
+                            <p className="text-sm md:text-base text-gray-400">Dites-nous tout ce qui compte pour vous.</p>
                         </div>
                         <div className="max-w-xl mx-auto space-y-4">
                             <div className="relative group">
@@ -589,8 +589,8 @@ const NewTrip: React.FC = () => {
                                     value={formData.notes}
                                     onChange={e => updateFormData({ notes: e.target.value })}
                                     rows={5}
-                                    className="w-full bg-dark-800 border-2 border-white/5 rounded-2xl md:rounded-3xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all text-sm md:text-base shadow-inner placeholder:text-gray-600 resize-none"
-                                    placeholder="Ex: 'On voyage avec un bébé', 'Pas plus de 2h de route par jour'..."
+                                    className="w-full bg-dark-800 border-2 border-white/5 rounded-2xl md:rounded-3xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all text-sm md:text-base shadow-inner placeholder:text-gray-500 resize-none leading-relaxed"
+                                    placeholder="Ex: 'Je veux absolument voir le Mont Fuji', 'Pas de randonnée difficile', 'Allergique aux fruits de mer', 'On adore les petits cafés cachés'..."
                                 />
                             </div>
 
@@ -599,7 +599,7 @@ const NewTrip: React.FC = () => {
                                     <Sparkles className="text-brand-500" size={16} />
                                 </div>
                                 <p className="text-xs text-gray-300 leading-relaxed italic pt-0.5">
-                                    Ces informations permettront à <span className="text-brand-400 font-bold">Tori IA</span> de personnaliser chaque instant de votre futur itinéraire.
+                                    Donnez-nous un maximum de détails : spots précis, contraintes (santé, budget, mobilité), activités de rêve... <span className="text-brand-400 font-bold">Tori IA</span> utilisera tout pour construire votre voyage parfait.
                                 </p>
                             </div>
                         </div>
@@ -627,9 +627,37 @@ const NewTrip: React.FC = () => {
 
                     <div className="px-6 py-4 flex items-center justify-between">
                         <div className="flex items-center gap-4 overflow-hidden">
-                            <span className="bg-brand-500/10 text-brand-500 border border-brand-500/20 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider shrink-0 shadow-lg shadow-brand-500/5 backdrop-blur-md">
-                                Étape {step}/7
-                            </span>
+
+                            {/* Circular Progress */}
+                            <div className="relative w-10 h-10 shrink-0 flex items-center justify-center">
+                                <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                                    {/* Background Circle */}
+                                    <path
+                                        className="text-gray-700"
+                                        d="M18 2.0845
+                                        a 15.9155 15.9155 0 0 1 0 31.831
+                                        a 15.9155 15.9155 0 0 1 0 -31.831"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                    />
+                                    {/* Progress Circle */}
+                                    <path
+                                        className="text-brand-500 transition-all duration-500 ease-out"
+                                        strokeDasharray={`${Math.round((step / 7) * 100)}, 100`}
+                                        d="M18 2.0845
+                                        a 15.9155 15.9155 0 0 1 0 31.831
+                                        a 15.9155 15.9155 0 0 1 0 -31.831"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                        strokeLinecap="round"
+                                    />
+                                </svg>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <span className="text-[10px] font-black text-brand-400">{Math.round((step / 7) * 100)}%</span>
+                                </div>
+                            </div>
 
                             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth mask-linear-fade pr-4">
                                 {/* Dynamic Recap Chips */}
@@ -656,6 +684,23 @@ const NewTrip: React.FC = () => {
                                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-xs font-bold text-gray-300 whitespace-nowrap">
                                         <Users size={12} className="text-brand-500" />
                                         <span>{formData.participants}</span>
+                                    </div>
+                                )}
+                                {step > 3 && formData.budget && (
+                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-xs font-bold text-gray-300 whitespace-nowrap">
+                                        <span className="text-brand-500 text-xs">€</span>
+                                        <span>{formData.budget}</span>
+                                    </div>
+                                )}
+                                {step > 5 && formData.rhythm && (
+                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-xs font-bold text-gray-300 whitespace-nowrap">
+                                        <span className="text-base">{formData.rhythm.split(' ')[0]}</span>
+                                    </div>
+                                )}
+                                {step > 6 && formData.experiences.length > 0 && (
+                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-xs font-bold text-gray-300 whitespace-nowrap">
+                                        <Zap size={12} className="text-brand-500" />
+                                        <span>{formData.experiences.length} exp.</span>
                                     </div>
                                 )}
                             </div>
