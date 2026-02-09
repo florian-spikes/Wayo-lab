@@ -388,6 +388,7 @@ const NewTrip: React.FC = () => {
                                             checklistItems.push({
                                                 card_id: card.id,
                                                 trip_id: trip.id,
+                                                user_id: user.id,
                                                 checklist_data: { label },
                                                 is_completed: false
                                             });
