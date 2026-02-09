@@ -254,7 +254,7 @@ const NewTrip: React.FC = () => {
                                     onChange={(val) => updateFormData({ origin: val })}
                                     onSelect={(feature) => updateFormData({ origin: feature.place_name })}
                                     placeholder="Ex: France, Paris"
-                                    type="place"
+                                    type="any"
                                 />
                             </div>
 
@@ -270,7 +270,7 @@ const NewTrip: React.FC = () => {
                                             onChange={setCurrentDestinationInput}
                                             onSelect={() => { }} // You might want to auto-add on select, but for now user clicks +
                                             placeholder="Ex: Japon, New York..."
-                                            type="country" // Or 'place' if you want cities too
+                                            type="any"
                                             className="flex-1"
                                         />
                                         <button
@@ -614,31 +614,61 @@ const NewTrip: React.FC = () => {
         <div className="min-h-screen bg-dark-900 text-white pb-24 md:pb-20 overflow-x-hidden">
             <Navbar />
 
-            {/* Sticky Recap / Header */}
-            <div className="fixed top-20 left-0 right-0 z-40 bg-dark-900/90 backdrop-blur-xl border-b border-white/5 px-4 h-16 flex items-center shadow-lg">
-                <div className="max-w-4xl mx-auto w-full flex justify-between items-center">
-                    <div className="flex items-center gap-4 overflow-x-auto no-scrollbar scroll-smooth mask-linear-fade">
-                        <span className="bg-brand-500 text-white text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider shrink-0 shadow-lg shadow-brand-500/20">Étape {step}/7</span>
-                        <div className="flex items-center gap-3 whitespace-nowrap text-xs font-bold text-gray-500 uppercase tracking-widest hidden md:flex">
-                            {formData.origin && <span className="text-white flex items-center gap-1.5"><PlaneTakeoff size={14} className="text-brand-500" /> {formData.origin}</span>}
-                            {formData.destinations.length > 0 && <span className="text-white flex items-center gap-1.5"><ChevronRight size={14} /> {formData.destinations.join(', ')}</span>}
-                        </div>
+            {/* Sticky Recap / Header - Redesigned */}
+            <div className="fixed top-20 left-0 right-0 z-40 px-4 flex justify-center pointer-events-none">
+                <div className="bg-gradient-to-br from-dark-800 via-dark-800 to-dark-900 rounded-[28px] border border-white/5 overflow-hidden shadow-2xl shadow-black/40 max-w-4xl w-full pointer-events-auto flex flex-col">
+                    {/* Progress Bar */}
+                    <div className="h-1 bg-dark-800 w-full">
+                        <div
+                            className="h-full bg-gradient-to-r from-brand-600 to-brand-400 transition-all duration-500 ease-out shadow-[0_0_15px_rgba(249,115,22,0.6)]"
+                            style={{ width: `${(step / 7) * 100}%` }}
+                        ></div>
                     </div>
-                    <button
-                        onClick={handleAbandon}
-                        className="p-2.5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all"
-                    >
-                        <X size={20} />
-                    </button>
-                </div>
-            </div>
 
-            {/* Progress Bar */}
-            <div className="fixed top-36 left-0 right-0 z-40 h-1 bg-dark-800">
-                <div
-                    className="h-full bg-gradient-to-r from-brand-600 to-brand-400 transition-all duration-500 ease-out shadow-[0_0_15px_rgba(249,115,22,0.6)]"
-                    style={{ width: `${(step / 7) * 100}%` }}
-                ></div>
+                    <div className="px-6 py-4 flex items-center justify-between">
+                        <div className="flex items-center gap-4 overflow-hidden">
+                            <span className="bg-brand-500/10 text-brand-500 border border-brand-500/20 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider shrink-0 shadow-lg shadow-brand-500/5 backdrop-blur-md">
+                                Étape {step}/7
+                            </span>
+
+                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth mask-linear-fade pr-4">
+                                {/* Dynamic Recap Chips */}
+                                {formData.origin && (
+                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-xs font-bold text-gray-300 whitespace-nowrap">
+                                        <PlaneTakeoff size={12} className="text-brand-500" />
+                                        <span className="truncate max-w-[100px]">{formData.origin.split(',')[0]}</span>
+                                    </div>
+                                )}
+                                {formData.destinations.length > 0 && (
+                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-xs font-bold text-gray-300 whitespace-nowrap">
+                                        <PlaneLanding size={12} className="text-brand-500" />
+                                        <span className="truncate max-w-[150px]">{formData.destinations.map(d => d.split(',')[0]).join(', ')}</span>
+                                    </div>
+                                )}
+                                {formData.startDate && (
+                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-xs font-bold text-gray-300 whitespace-nowrap">
+                                        <CalendarIcon size={12} className="text-brand-500" />
+                                        <span>{new Date(formData.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
+                                        {formData.endDate && <span>- {new Date(formData.endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
+                                    </div>
+                                )}
+                                {formData.participants > 1 && (
+                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-xs font-bold text-gray-300 whitespace-nowrap">
+                                        <Users size={12} className="text-brand-500" />
+                                        <span>{formData.participants}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={handleAbandon}
+                            className="p-2 text-gray-500 hover:text-red-400 hover:bg-white/5 rounded-full transition-all"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <main className="max-w-4xl mx-auto px-4 pt-48 pb-32 animate-in fade-in duration-700">

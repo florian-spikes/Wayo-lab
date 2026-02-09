@@ -14,7 +14,7 @@ interface MapboxAutocompleteProps {
     onChange: (value: string) => void;
     onSelect?: (feature: MapboxFeature) => void;
     placeholder?: string;
-    type?: 'country' | 'place'; // Restrict types to country or place/city
+    type?: 'country' | 'city' | 'any'; // country = pays, city = villes, any = les deux
     className?: string;
 }
 
@@ -23,7 +23,7 @@ const MapboxAutocomplete: React.FC<MapboxAutocompleteProps> = ({
     onChange,
     onSelect,
     placeholder = "Rechercher...",
-    type = 'place',
+    type = 'any',
     className = ""
 }) => {
     const [query, setQuery] = useState(value);
@@ -69,7 +69,9 @@ const MapboxAutocomplete: React.FC<MapboxAutocompleteProps> = ({
                     return;
                 }
 
-                const types = type === 'country' ? 'country' : 'place,locality,country';
+                let types = 'place,locality,country';
+                if (type === 'country') types = 'country';
+                if (type === 'city') types = 'place,locality';
                 const response = await fetch(
                     `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${mapboxToken}&types=${types}&language=fr&limit=5`
                 );
