@@ -7,28 +7,30 @@ export type { TripContext, GeneratedItinerary, GeneratedDay };
 /**
  * Result of itinerary generation
  */
+/**
+ * Result of itinerary generation
+ */
 export interface GenerationResult {
     success: boolean;
     itinerary?: GeneratedItinerary;
     error?: string;
-    fallback?: boolean; // true if we fell back to empty days
+    fallback?: boolean;
+    partial?: boolean;
 }
 
 /**
- * Generate a complete trip itinerary using Gemini AI
- * 
- * @param context - Trip context with all preferences
- * @returns GenerationResult with itinerary or error
+ * Generate a complete trip itinerary using Gemini AI (Streaming)
  */
-export async function generateItinerary(context: TripContext): Promise<GenerationResult> {
+export async function* generateItineraryStream(context: TripContext): AsyncGenerator<GenerationResult> {
     // Check if AI is available
     const model = geminiPro || geminiFlash;
     if (!isAIAvailable() || !model) {
         console.warn('AI not available, returning empty itinerary');
-        return {
+        return yield {
             success: true,
             itinerary: createFallbackItinerary(context),
-            fallback: true
+            fallback: true,
+            partial: false
         };
     }
 
@@ -36,103 +38,203 @@ export async function generateItinerary(context: TripContext): Promise<Generatio
         const systemPrompt = buildSystemPrompt();
         const userPrompt = buildUserPrompt(context);
 
-        console.log('🤖 Generating itinerary with AI...');
-        console.log('Context:', {
-            destinations: context.destinations,
-            days: context.durationDays,
-            budget: context.budget,
-            rhythm: context.rhythm
+        console.log('🤖 Generating itinerary stream with AI...');
+
+        const result = await model.generateContentStream({
+            contents: [
+                {
+                    role: 'user',
+                    parts: [
+                        { text: systemPrompt },
+                        { text: userPrompt }
+                    ]
+                }
+            ]
         });
 
-        // Call Gemini API with retry for rate limiting
-        const result = await withRetry(async () => {
-            return model.generateContent({
-                contents: [
-                    {
-                        role: 'user',
-                        parts: [
-                            { text: systemPrompt },
-                            { text: userPrompt }
-                        ]
-                    }
-                ]
-            });
-        }, 3, 2000);
+        const parser = new DailyParser(context);
 
-        const response = result.response;
-        const text = response.text();
+        for await (const chunk of result.stream) {
+            const chunkText = chunk.text();
 
-        console.log('📥 Raw AI response (first 500 chars):', text.substring(0, 500));
+            const updates = parser.parseChunk(chunkText);
 
-        // Parse JSON response
-        let rawData: any;
-        try {
-            // Try to extract JSON from the response (handle potential markdown code blocks)
-            let jsonText = text.trim();
-
-            // Remove markdown code block if present
-            if (jsonText.startsWith('```json')) {
-                jsonText = jsonText.slice(7);
-            } else if (jsonText.startsWith('```')) {
-                jsonText = jsonText.slice(3);
-            }
-            if (jsonText.endsWith('```')) {
-                jsonText = jsonText.slice(0, -3);
-            }
-            jsonText = jsonText.trim();
-
-            try {
-                rawData = JSON.parse(jsonText);
-                console.log('✅ JSON parsed successfully');
-            } catch {
-                // Try to repair truncated JSON
-                console.warn('⚠️ JSON parse failed, attempting repair...');
-                const repairedJson = repairTruncatedJSON(jsonText);
-                if (repairedJson) {
-                    rawData = JSON.parse(repairedJson);
-                    console.log('✅ JSON repaired and parsed successfully');
-                } else {
-                    throw new Error('Could not repair JSON');
+            if (updates.length > 0) {
+                for (const update of updates) {
+                    yield update;
                 }
             }
-        } catch (parseError) {
-            console.error('❌ Failed to parse AI response as JSON:', text.substring(0, 1000) + '...');
-            throw new Error('Invalid JSON response from AI');
         }
-
-        // Normalize the response structure (handle different key names)
-        const itinerary = normalizeItinerary(rawData, context);
-
-        if (!itinerary) {
-            console.error('❌ Could not normalize itinerary from:', rawData);
-            throw new Error('Invalid itinerary structure');
-        }
-
-        // Ensure we have the right number of days
-        if (itinerary.days.length !== context.durationDays) {
-            console.warn(`AI generated ${itinerary.days.length} days, expected ${context.durationDays}. Adjusting...`);
-            adjustDaysCount(itinerary, context.durationDays);
-        }
-
-        console.log('✅ Itinerary generated successfully:', itinerary.title);
-        console.log('📊 Days:', itinerary.days.length, 'Activities:', itinerary.days.reduce((sum, d) => sum + d.activities.length, 0));
-
-        return {
-            success: true,
-            itinerary
-        };
 
     } catch (error: any) {
-        console.error('❌ AI generation failed:', error);
-
-        // Return fallback on error
-        return {
-            success: true,
-            itinerary: createFallbackItinerary(context),
-            fallback: true,
+        console.error('❌ AI stream failed:', error);
+        yield {
+            success: false,
             error: error.message
         };
     }
+}
+
+/**
+* Helper class to parse streaming JSON and extract days
+*/
+class DailyParser {
+    private buffer = '';
+    private context: TripContext;
+    private processedDays = new Set<number>();
+    private titleFound = false;
+    private title = '';
+    private emoji = '';
+
+    constructor(context: TripContext) {
+        this.context = context;
+    }
+
+    parseChunk(chunk: string): GenerationResult[] {
+        this.buffer += chunk;
+        const results: GenerationResult[] = [];
+
+        // 1. Try to extract title/emoji if not found yet
+        if (!this.titleFound) {
+            const titleMatch = this.buffer.match(/"title"\s*:\s*"([^"]+)"/);
+            if (titleMatch) {
+                this.title = titleMatch[1];
+                this.titleFound = true;
+                results.push({
+                    success: true,
+                    itinerary: {
+                        title: this.title,
+                        emoji: this.emoji || selectDefaultEmoji(this.context.destinations),
+                        days: []
+                    },
+                    partial: true
+                });
+            }
+
+            const emojiMatch = this.buffer.match(/"emoji"\s*:\s*"([^"]+)"/);
+            if (emojiMatch) {
+                this.emoji = emojiMatch[1];
+            }
+        }
+
+        // 2. Extract complete day objects
+        // Look for {"dayIndex": X, ...} blocks that are closed.
+        // We use a regex that matches from { "dayIndex" ... up to the closing brace of the day object
+        // The closing literal is hard to determine via regex alone because of nested braces.
+        // However, since we know the structure, we can assume days end with "}," or "]"
+
+        // Regex explanation:
+        // {\s*"dayIndex"  -> start of day
+        // [^}]+           -> content (this is weak if nested objects exist)
+        // activities      -> ensure it has activities
+        // .*?             -> lazy match until end
+        // }\s*(,|])       -> end of object
+
+        // A more robust way without full parser: 
+        // Split buffer by "dayIndex". For each segment, try to parse it as a JSON object (or wrapped in brackets).
+
+        // Let's rely on a simpler regex that works for typical Gemini output:
+        // It usually outputs strictly formatted JSON.
+        // We look for patterns: { "dayIndex": 1, ... }
+
+        const dayMetrics = this.buffer.matchAll(/{\s*"dayIndex"\s*:\s*(\d+)/g);
+        for (const match of dayMetrics) {
+            const dayIdx = parseInt(match[1]);
+            if (this.processedDays.has(dayIdx)) continue;
+
+            // We found a start of a new day. Let's see if we can find its end.
+            // The start index in buffer is match.index
+            const startIndex = match.index!;
+
+            // We need to find the matching closing brace.
+            const endIndex = this.findMatchingBrace(this.buffer, startIndex);
+
+            if (endIndex !== -1) {
+                const dayJsonStr = this.buffer.substring(startIndex, endIndex + 1);
+                try {
+                    const dayObj = JSON.parse(dayJsonStr);
+                    if (dayObj.dayIndex) { // Verify it parsed correctly
+                        const normalizedDay = normalizeDaysArray([dayObj], this.context)[0];
+                        this.processedDays.add(dayObj.dayIndex);
+
+                        results.push({
+                            success: true,
+                            itinerary: {
+                                title: this.title || `Voyage à ${this.context.destinations.join(', ')}`,
+                                emoji: this.emoji || selectDefaultEmoji(this.context.destinations),
+                                days: [normalizedDay]
+                            },
+                            partial: true
+                        });
+                    }
+                } catch (e) {
+                    // Not complete yet
+                }
+            }
+        }
+
+        return results;
+    }
+
+    private findMatchingBrace(str: string, start: number): number {
+        let depth = 0;
+        let inString = false;
+        let escape = false;
+
+        for (let i = start; i < str.length; i++) {
+            const char = str[i];
+
+            if (escape) {
+                escape = false;
+                continue;
+            }
+
+            if (char === '\\') {
+                escape = true;
+                continue;
+            }
+
+            if (char === '"') {
+                inString = !inString;
+                continue;
+            }
+
+            if (inString) continue;
+
+            if (char === '{') {
+                depth++;
+            } else if (char === '}') {
+                depth--;
+                if (depth === 0) return i;
+            }
+        }
+
+        return -1;
+    }
+}
+
+// Kept for backward compatibility but unused in new flow
+export async function generateItinerary(context: TripContext): Promise<GenerationResult> {
+    // Legacy implementation - just reusing the stream to gather all data
+    const generator = generateItineraryStream(context);
+    let finalResult: GenerationResult = { success: false, error: 'Unknown' };
+    const allDays: GeneratedDay[] = [];
+
+    for await (const result of generator) {
+        finalResult = result;
+        if (result.itinerary?.days) {
+            allDays.push(...result.itinerary.days);
+        }
+    }
+
+    // Sort days
+    allDays.sort((a, b) => a.dayIndex - b.dayIndex);
+
+    if (finalResult.itinerary) {
+        finalResult.itinerary.days = allDays;
+    }
+
+    return finalResult;
 }
 
 /**

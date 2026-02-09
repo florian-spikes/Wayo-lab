@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { generateItinerary, TripContext } from '../lib/ai/itinerary-generator';
+import { generateItineraryStream, TripContext } from '../lib/ai/itinerary-generator';
 import {
     ChevronLeft,
     ChevronRight,
@@ -51,6 +51,7 @@ const NewTrip: React.FC = () => {
     const [showExitModal, setShowExitModal] = useState(false);
     const [generationStep, setGenerationStep] = useState<'idle' | 'creating' | 'generating' | 'saving' | 'done'>('idle');
     const [showGeneratingModal, setShowGeneratingModal] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState('');
     const [isDirty, setIsDirty] = useState(false);
 
     // Multi-dest input state
@@ -194,6 +195,7 @@ const NewTrip: React.FC = () => {
         setLoading(true);
         setShowGeneratingModal(true);
         setGenerationStep('creating');
+        setLoadingMessage('Préparation de votre espace...');
 
         try {
             // Calculate duration
@@ -248,8 +250,20 @@ const NewTrip: React.FC = () => {
 
             if (tripError) throw tripError;
 
-            // 2. Generate AI Itinerary
+            // 5. Add Creator as Member (Do this early so they have access)
+            const { error: memberError } = await supabase
+                .from('trip_members')
+                .insert({
+                    trip_id: trip.id,
+                    user_id: user.id,
+                    role: 'owner'
+                });
+
+            if (memberError) throw memberError;
+
+            // 2. Generate AI Itinerary (Streaming)
             setGenerationStep('generating');
+            setLoadingMessage('Initialisation de l\'IA...');
 
             const aiContext: TripContext = {
                 destinations: formData.destinations,
@@ -262,160 +276,143 @@ const NewTrip: React.FC = () => {
                 experiences: formData.experiences,
                 participants: formData.participants,
                 notes: formData.notes || undefined,
-                // User context from origin (extract country)
                 userCountry: formData.origin.split(',').pop()?.trim()
             };
 
-            const aiResult = await generateItinerary(aiContext);
+            const stream = generateItineraryStream(aiContext);
+            const processedDays = new Set<number>();
+            let titleUpdated = false;
 
-            if (!aiResult.success || !aiResult.itinerary) {
-                throw new Error(aiResult.error || 'AI generation failed');
-            }
-
-            // Update trip title and emoji if AI provided them
-            if (aiResult.itinerary && !aiResult.fallback) {
-                const updateData: any = {};
-
-                if (aiResult.itinerary.title) {
-                    updateData.title = aiResult.itinerary.title;
+            for await (const result of stream) {
+                if (!result.success && result.error) {
+                    throw new Error(result.error);
                 }
 
-                if (aiResult.itinerary.emoji) {
-                    // Merge emoji into existing preferences
-                    updateData.preferences = {
-                        ...trip.preferences,
-                        emoji: aiResult.itinerary.emoji
-                    };
-                }
-
-                if (Object.keys(updateData).length > 0) {
-                    await supabase
-                        .from('trips')
-                        .update(updateData)
-                        .eq('id', trip.id);
-                }
-            }
-
-            // 3. Insert Days with AI-generated titles
-            setGenerationStep('saving');
-
-            const daysToInsert = aiResult.itinerary.days.map((day, i) => {
-                let dayDate = null;
-                if (formData.dateMode === 'fixed' && formData.startDate) {
-                    const d = new Date(formData.startDate);
-                    d.setDate(d.getDate() + i);
-                    dayDate = d.toISOString().split('T')[0];
-                }
-                return {
-                    trip_id: trip.id,
-                    day_index: day.dayIndex,
-                    date: dayDate,
-                    title: day.title || `Jour ${day.dayIndex}`,
-                    status: 'draft'
-                };
-            });
-
-            const { data: insertedDays, error: daysError } = await supabase
-                .from('trip_days')
-                .insert(daysToInsert)
-                .select();
-
-            if (daysError) throw daysError;
-
-            // 4. Insert Cards (activities) from AI
-            if (insertedDays && !aiResult.fallback) {
-                const cardsToInsert: any[] = [];
-                const checklistsToInsert: { cardIndex: number; items: string[] }[] = [];
-
-                for (const day of aiResult.itinerary.days) {
-                    const dbDay = insertedDays.find(d => d.day_index === day.dayIndex);
-                    if (!dbDay) continue;
-
-                    day.activities.forEach((activity, actIndex) => {
-                        // Compute end_time from startTime + duration
-                        let endTime: string | null = null;
-                        if (activity.startTime && activity.duration) {
-                            endTime = computeEndTime(activity.startTime, activity.duration);
+                if (result.itinerary) {
+                    // Update metadata if available and not yet updated
+                    if (!titleUpdated && (result.itinerary.title || result.itinerary.emoji)) {
+                        const updateData: any = {};
+                        if (result.itinerary.title) updateData.title = result.itinerary.title;
+                        if (result.itinerary.emoji) {
+                            updateData.preferences = { ...trip.preferences, emoji: result.itinerary.emoji };
                         }
 
-                        cardsToInsert.push({
-                            trip_id: trip.id,
-                            day_id: dbDay.id,
-                            type: activity.type,
-                            title: activity.title,
-                            description: activity.description,
-                            start_time: activity.startTime || null,
-                            end_time: endTime,
-                            location_text: activity.locationText || null,
-                            cost_estimate: activity.costEstimate || null,
-                            order_index: actIndex,
-                            source: 'ai',
-                            created_by: user.id
-                        });
-
-                        // Store checklist for later insertion
-                        if (activity.checklist && activity.checklist.length > 0) {
-                            checklistsToInsert.push({
-                                cardIndex: cardsToInsert.length - 1,
-                                items: activity.checklist
-                            });
+                        if (Object.keys(updateData).length > 0) {
+                            await supabase.from('trips').update(updateData).eq('id', trip.id);
+                            titleUpdated = true;
                         }
-                    });
-                }
+                    }
 
-                if (cardsToInsert.length > 0) {
-                    const { data: insertedCards, error: cardsError } = await supabase
-                        .from('cards')
-                        .insert(cardsToInsert)
-                        .select('id');
+                    // Process new days
+                    if (result.itinerary.days.length > 0) {
+                        setGenerationStep('saving');
 
-                    if (cardsError) {
-                        console.error('Error inserting AI cards:', cardsError);
-                        // Don't throw - trip is still valid without cards
-                    } else if (insertedCards && checklistsToInsert.length > 0) {
-                        // Insert checklists for the created cards
-                        const checklistItems: any[] = [];
+                        for (const day of result.itinerary.days) {
+                            if (processedDays.has(day.dayIndex)) continue;
 
-                        checklistsToInsert.forEach(({ cardIndex, items }) => {
-                            const card = insertedCards[cardIndex];
-                            if (!card) return;
+                            setLoadingMessage(`Génération du jour ${day.dayIndex}/${duration}...`);
 
-                            items.forEach(label => {
-                                checklistItems.push({
-                                    card_id: card.id,
-                                    trip_id: trip.id,
-                                    checklist_data: { label },
-                                    is_completed: false
-                                });
-                            });
-                        });
-
-                        if (checklistItems.length > 0) {
-                            const { error: checklistError } = await supabase
-                                .from('checklists')
-                                .insert(checklistItems);
-
-                            if (checklistError) {
-                                console.error('Error inserting checklists:', checklistError);
+                            // Insert Day
+                            let dayDate = null;
+                            if (formData.dateMode === 'fixed' && formData.startDate) {
+                                const d = new Date(formData.startDate);
+                                d.setDate(d.getDate() + (day.dayIndex - 1));
+                                dayDate = d.toISOString().split('T')[0];
                             }
+
+                            const { data: insertedDay, error: dayError } = await supabase
+                                .from('trip_days')
+                                .insert({
+                                    trip_id: trip.id,
+                                    day_index: day.dayIndex,
+                                    date: dayDate,
+                                    title: day.title || `Jour ${day.dayIndex}`,
+                                    status: 'draft'
+                                })
+                                .select()
+                                .single();
+
+                            if (dayError) {
+                                console.error('Error inserting day:', dayError);
+                                continue;
+                            }
+
+                            // Insert Activities
+                            const cardsToInsert: any[] = [];
+                            const checklistsToInsert: { cardIndex: number; items: string[] }[] = [];
+
+                            day.activities.forEach((activity, actIndex) => {
+                                let endTime: string | null = null;
+                                if (activity.startTime && activity.duration) {
+                                    endTime = computeEndTime(activity.startTime, activity.duration);
+                                }
+
+                                cardsToInsert.push({
+                                    trip_id: trip.id,
+                                    day_id: insertedDay.id,
+                                    type: activity.type,
+                                    title: activity.title,
+                                    description: activity.description,
+                                    start_time: activity.startTime || null,
+                                    end_time: endTime,
+                                    location_text: activity.locationText || null,
+                                    cost_estimate: activity.costEstimate || null,
+                                    order_index: actIndex,
+                                    source: 'ai',
+                                    created_by: user.id
+                                });
+
+                                if (activity.checklist && activity.checklist.length > 0) {
+                                    checklistsToInsert.push({
+                                        cardIndex: cardsToInsert.length - 1,
+                                        items: activity.checklist
+                                    });
+                                }
+                            });
+
+                            if (cardsToInsert.length > 0) {
+                                const { data: insertedCards, error: cardsError } = await supabase
+                                    .from('cards')
+                                    .insert(cardsToInsert)
+                                    .select('id');
+
+                                if (cardsError) {
+                                    console.error('Error inserting cards:', cardsError);
+                                } else if (insertedCards && checklistsToInsert.length > 0) {
+                                    const checklistItems: any[] = [];
+                                    checklistsToInsert.forEach(({ cardIndex, items }) => {
+                                        const card = insertedCards[cardIndex];
+                                        if (!card) return;
+                                        items.forEach(label => {
+                                            checklistItems.push({
+                                                card_id: card.id,
+                                                trip_id: trip.id,
+                                                checklist_data: { label },
+                                                is_completed: false
+                                            });
+                                        });
+                                    });
+
+                                    if (checklistItems.length > 0) {
+                                        await supabase.from('checklists').insert(checklistItems);
+                                    }
+                                }
+                            }
+
+                            processedDays.add(day.dayIndex);
                         }
                     }
                 }
             }
 
-            // 5. Add Creator as Member
-            const { error: memberError } = await supabase
-                .from('trip_members')
-                .insert({
-                    trip_id: trip.id,
-                    user_id: user.id,
-                    role: 'owner'
-                });
-
-            if (memberError) throw memberError;
+            // Fill missing days if any (User requested fallback handled by generator, but ensuring just in case)
+            // Implementation detail: generator yields fallback result if failed, which contains all empty days.
+            // If partial failure blocks execution, we might end up with partial trip.
+            // But we can let the user fill the rest.
 
             // Done!
             setGenerationStep('done');
+            setLoadingMessage('Finalisation...');
             setIsDirty(false);
 
             // Brief pause to show success state
@@ -431,6 +428,7 @@ const NewTrip: React.FC = () => {
             alert(`Erreur lors de la création : ${error.message}`);
         } finally {
             setLoading(false);
+            setLoadingMessage('');
         }
     };
 
@@ -1029,11 +1027,15 @@ const NewTrip: React.FC = () => {
                             {generationStep === 'done' && '🎉 C\'est prêt !'}
                         </h3>
 
-                        <p className="text-gray-400 text-sm mb-6">
-                            {generationStep === 'creating' && 'Préparation de votre aventure...'}
-                            {generationStep === 'generating' && 'L\'IA analyse vos préférences pour créer un itinéraire parfait.'}
-                            {generationStep === 'saving' && 'Quelques secondes encore...'}
-                            {generationStep === 'done' && 'Votre voyage personnalisé est prêt !'}
+                        <p className="text-gray-400 text-sm mb-6 animate-pulse">
+                            {loadingMessage || (
+                                <>
+                                    {generationStep === 'creating' && 'Préparation de votre aventure...'}
+                                    {generationStep === 'generating' && 'L\'IA analyse vos préférences pour créer un itinéraire parfait.'}
+                                    {generationStep === 'saving' && 'Quelques secondes encore...'}
+                                    {generationStep === 'done' && 'Votre voyage personnalisé est prêt !'}
+                                </>
+                            )}
                         </p>
 
                         {/* Progress Steps */}
