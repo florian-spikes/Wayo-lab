@@ -246,7 +246,7 @@ const NewTrip: React.FC = () => {
                         <div className="grid grid-cols-1 gap-4 max-w-lg mx-auto">
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wider">
-                                    <PlaneTakeoff size={14} className="text-brand-500" /> Pays de départ
+                                    <PlaneTakeoff size={14} className="text-brand-500" /> Localisation de départ
                                 </label>
                                 <input
                                     type="text"
@@ -259,7 +259,7 @@ const NewTrip: React.FC = () => {
 
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wider">
-                                    <PlaneLanding size={14} className="text-brand-500" /> Pays d'arrivée / Destinations
+                                    <PlaneLanding size={14} className="text-brand-500" /> Destinations
                                 </label>
 
                                 <div className="space-y-3">
@@ -274,7 +274,7 @@ const NewTrip: React.FC = () => {
                                                     addDestination();
                                                 }
                                             }}
-                                            placeholder="Ex: Japon, Italie..."
+                                            placeholder="Ex: Japon, New York..."
                                             className="flex-1 bg-dark-800 border-2 border-white/5 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-brand-500 transition-all text-sm md:text-base font-medium shadow-inner placeholder:text-gray-600"
                                         />
                                         <button
