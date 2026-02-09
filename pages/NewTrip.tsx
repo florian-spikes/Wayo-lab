@@ -617,13 +617,7 @@ const NewTrip: React.FC = () => {
             {/* Header / Recap - Static */}
             <div className="pt-24 px-4 flex justify-center">
                 <div className="bg-gradient-to-br from-dark-800 via-dark-800 to-dark-900 rounded-[28px] border border-white/5 overflow-hidden shadow-2xl shadow-black/40 max-w-4xl w-full flex flex-col relative z-10">
-                    {/* Progress Bar */}
-                    <div className="h-1 bg-dark-800 w-full">
-                        <div
-                            className="h-full bg-gradient-to-r from-brand-600 to-brand-400 transition-all duration-500 ease-out shadow-[0_0_15px_rgba(249,115,22,0.6)]"
-                            style={{ width: `${(step / 7) * 100}%` }}
-                        ></div>
-                    </div>
+
 
                     <div className="px-6 py-4 flex items-center justify-between">
                         <div className="flex items-center gap-4 overflow-hidden">
