@@ -17,6 +17,7 @@ export const geminiFlash = genAI?.getGenerativeModel({
     generationConfig: {
         responseMimeType: 'application/json',
         temperature: 0.7, // Balanced creativity
+        maxOutputTokens: 16000, // Allow long responses for multi-day itineraries
     },
 });
 

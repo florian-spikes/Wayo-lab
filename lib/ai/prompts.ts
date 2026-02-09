@@ -24,6 +24,15 @@ RÈGLES STRICTES:
 5. HORAIRES RÉALISTES: Les horaires doivent tenir compte des temps de trajet et des heures d'ouverture.
 6. EXPÉRIENCES: Intègre les types d'expériences demandés (culture, gastronomie, nature, etc.).
 
+TITRE DU VOYAGE (TRÈS IMPORTANT):
+Génère un titre COURT, ACCROCHEUR et ÉVOCATEUR - PAS une liste de villes !
+Bons exemples:
+- "Découverte du Québec" (pas "Voyage à Montréal, Québec, Saguenay")
+- "Road Trip Côte Ouest" (pas "Los Angeles, San Francisco, Las Vegas")
+- "Aventure au Pays du Soleil Levant" (pas "Tokyo, Kyoto, Osaka")
+- "Évasion Méditerranéenne" (pas "Barcelone, Nice, Rome")
+Maximum 5-6 mots. Évoque l'esprit du voyage, pas la géographie exhaustive.
+
 CATÉGORIES D'ACTIVITÉS (utilise exactement ces valeurs):
 - "activité": Loisir, sport, divertissement
 - "repas": Restaurant, café, dégustation, street food
@@ -46,7 +55,7 @@ CHAMPS OBLIGATOIRES POUR CHAQUE ACTIVITÉ:
 FORMAT DE RÉPONSE:
 Réponds UNIQUEMENT avec un JSON valide. Structure attendue:
 {
-  "title": "Titre du voyage",
+  "title": "Titre accrocheur du voyage (5-6 mots max)",
   "days": [
     {
       "dayIndex": 1,

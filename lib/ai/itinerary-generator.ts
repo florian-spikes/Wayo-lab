@@ -78,10 +78,22 @@ export async function generateItinerary(context: TripContext): Promise<Generatio
             }
             jsonText = jsonText.trim();
 
-            rawData = JSON.parse(jsonText);
-            console.log('✅ JSON parsed successfully');
+            try {
+                rawData = JSON.parse(jsonText);
+                console.log('✅ JSON parsed successfully');
+            } catch {
+                // Try to repair truncated JSON
+                console.warn('⚠️ JSON parse failed, attempting repair...');
+                const repairedJson = repairTruncatedJSON(jsonText);
+                if (repairedJson) {
+                    rawData = JSON.parse(repairedJson);
+                    console.log('✅ JSON repaired and parsed successfully');
+                } else {
+                    throw new Error('Could not repair JSON');
+                }
+            }
         } catch (parseError) {
-            console.error('❌ Failed to parse AI response as JSON:', text);
+            console.error('❌ Failed to parse AI response as JSON:', text.substring(0, 1000) + '...');
             throw new Error('Invalid JSON response from AI');
         }
 
@@ -409,4 +421,106 @@ function adjustDaysCount(itinerary: GeneratedItinerary, targetDays: number): Gen
     });
 
     return itinerary;
+}
+
+/**
+ * Attempt to repair truncated JSON by closing open brackets/braces
+ * This is a best-effort recovery for when AI response is cut off
+ */
+function repairTruncatedJSON(jsonText: string): string | null {
+    try {
+        // Track open brackets and braces
+        const stack: string[] = [];
+        let inString = false;
+        let escape = false;
+
+        for (let i = 0; i < jsonText.length; i++) {
+            const char = jsonText[i];
+
+            if (escape) {
+                escape = false;
+                continue;
+            }
+
+            if (char === '\\') {
+                escape = true;
+                continue;
+            }
+
+            if (char === '"' && !escape) {
+                inString = !inString;
+                continue;
+            }
+
+            if (inString) continue;
+
+            if (char === '{' || char === '[') {
+                stack.push(char);
+            } else if (char === '}') {
+                if (stack.length > 0 && stack[stack.length - 1] === '{') {
+                    stack.pop();
+                }
+            } else if (char === ']') {
+                if (stack.length > 0 && stack[stack.length - 1] === '[') {
+                    stack.pop();
+                }
+            }
+        }
+
+        if (stack.length === 0) {
+            // JSON is complete, no repair needed
+            return null;
+        }
+
+        // Find the last complete structure (end at last complete object/array)
+        let repairedJson = jsonText;
+
+        // If we're in the middle of a string, close it
+        if (inString) {
+            // Find a reasonable cutoff point
+            const lastQuote = repairedJson.lastIndexOf('"');
+            if (lastQuote > 0) {
+                // Truncate before incomplete string and close
+                const lastGoodPoint = repairedJson.lastIndexOf(',', lastQuote);
+                if (lastGoodPoint > 0) {
+                    repairedJson = repairedJson.substring(0, lastGoodPoint);
+                }
+            }
+        }
+
+        // Remove any trailing incomplete property/value
+        repairedJson = repairedJson.replace(/,\s*"[^"]*"?\s*:?\s*("?[^"]*)?$/, '');
+        repairedJson = repairedJson.replace(/,\s*$/, '');
+        repairedJson = repairedJson.replace(/,\s*{\s*$/, '');
+        repairedJson = repairedJson.replace(/,\s*\[\s*$/, '');
+
+        // Re-count what we need to close
+        stack.length = 0;
+        inString = false;
+        escape = false;
+
+        for (let i = 0; i < repairedJson.length; i++) {
+            const char = repairedJson[i];
+            if (escape) { escape = false; continue; }
+            if (char === '\\') { escape = true; continue; }
+            if (char === '"' && !escape) { inString = !inString; continue; }
+            if (inString) continue;
+            if (char === '{' || char === '[') stack.push(char);
+            else if (char === '}' && stack.length > 0 && stack[stack.length - 1] === '{') stack.pop();
+            else if (char === ']' && stack.length > 0 && stack[stack.length - 1] === '[') stack.pop();
+        }
+
+        // Close remaining open brackets/braces in reverse order
+        while (stack.length > 0) {
+            const open = stack.pop();
+            if (open === '{') repairedJson += '}';
+            else if (open === '[') repairedJson += ']';
+        }
+
+        console.log('🔧 Repaired JSON (partial response recovered)');
+        return repairedJson;
+    } catch {
+        console.error('❌ JSON repair failed');
+        return null;
+    }
 }
