@@ -699,7 +699,8 @@ const NewTrip: React.FC = () => {
                                 )}
                                 {(maxStepReached > 4 || (step > 4 && formData.budget)) && (
                                     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-gray-300 whitespace-nowrap shrink-0">
-                                        <span className="text-brand-500 font-black">
+                                        <span className="text-brand-500 font-black text-xs">€</span>
+                                        <span>
                                             {budgetLevels.find(b => b.id === formData.budget)?.label || formData.budget}
                                         </span>
                                     </div>
