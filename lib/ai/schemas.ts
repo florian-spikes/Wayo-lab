@@ -52,6 +52,7 @@ export interface GeneratedDay {
  */
 export interface GeneratedItinerary {
     title: string;
+    emoji: string; // Trip icon emoji selected by AI
     days: GeneratedDay[];
 }
 
@@ -61,7 +62,8 @@ export interface GeneratedItinerary {
 export const ITINERARY_JSON_SCHEMA = {
     type: "object",
     properties: {
-        title: { type: "string", description: "Titre attractif pour le voyage" },
+        title: { type: "string", description: "Titre attractif pour le voyage (5-6 mots max)" },
+        emoji: { type: "string", description: "Un seul emoji représentant le voyage" },
         days: {
             type: "array",
             items: {
@@ -100,5 +102,5 @@ export const ITINERARY_JSON_SCHEMA = {
             }
         }
     },
-    required: ["title", "days"]
+    required: ["title", "emoji", "days"]
 };

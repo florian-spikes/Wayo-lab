@@ -133,6 +133,58 @@ export async function generateItinerary(context: TripContext): Promise<Generatio
 }
 
 /**
+ * Select an appropriate default emoji based on destinations
+ */
+function selectDefaultEmoji(destinations: string[]): string {
+    const destStr = destinations.join(' ').toLowerCase();
+
+    // Destination-based emoji mapping
+    const emojiMap: [RegExp, string][] = [
+        // Countries/Regions
+        [/canada|qu[eé]bec|montr[eé]al|toronto|vancouver/i, '🍁'],
+        [/usa|[eé]tats.?unis|new.?york|california|los.?angeles|miami|vegas/i, '🗽'],
+        [/japon|japan|tokyo|kyoto|osaka/i, '🏯'],
+        [/france|paris|lyon|marseille|nice/i, '🗼'],
+        [/australie|australia|sydney|melbourne/i, '🦘'],
+        [/afrique|africa|kenya|tanzanie|safari|marrakech/i, '🐘'],
+        [/inde|india|delhi|mumbai|rajasthan/i, '🛕'],
+        [/thaïlande|thailand|bangkok|phuket|bali|indonésie|vietnam/i, '🌴'],
+        [/caraïbes|caribbean|cuba|jamaïque|bahamas|antilles/i, '🌴'],
+        [/maldives|seychelles|maurice|réunion/i, '🏝️'],
+        [/islande|iceland|norvège|norway|scandinavie|laponie/i, '❄️'],
+        [/espagne|spain|barcelone|madrid|portugal|lisbonne/i, '☀️'],
+        [/italie|italy|rome|venise|florence|milan/i, '🏰'],
+        [/grèce|greece|athènes|santorini|croatie|croatia/i, '☀️'],
+        [/maroc|morocco|désert|desert|sahara/i, '🌵'],
+        [/suisse|switzerland|alpes|alps|montagne|mountain|ski/i, '🏔️'],
+        [/hawaii|hawaï|volcans?|islande/i, '🌋'],
+        [/égypte|egypt|pyramides?/i, '🏛️'],
+        [/chine|china|pékin|beijing|shanghai/i, '🐉'],
+        [/dubaï|dubai|émirats|abu.?dhabi|qatar/i, '🕌'],
+        [/mexique|mexico|cancun/i, '🌮'],
+        [/brésil|brazil|rio/i, '🎭'],
+        [/argentine|argentina|buenos.?aires|patagonie/i, '🗻'],
+        // Activity-based
+        [/road.?trip|roadtrip/i, '🚐'],
+        [/croisière|cruise|bateau/i, '⛵'],
+        [/surf|plage|beach/i, '🏄'],
+        [/ski|neige|snow/i, '🎿'],
+        [/randonnée|trek|hiking/i, '🥾'],
+        [/vin|wine|vignoble|vineyard/i, '🍷'],
+        [/gastronomie|food|culinaire/i, '🍜'],
+    ];
+
+    for (const [pattern, emoji] of emojiMap) {
+        if (pattern.test(destStr)) {
+            return emoji;
+        }
+    }
+
+    // Default: globe for multi-destination, airplane otherwise
+    return destinations.length > 1 ? '🌍' : '✈️';
+}
+
+/**
  * Normalize different possible response formats into our expected structure
  */
 function normalizeItinerary(data: any, context: TripContext): GeneratedItinerary | null {
@@ -158,8 +210,14 @@ function normalizeItinerary(data: any, context: TripContext): GeneratedItinerary
     if (Array.isArray(daysArray)) {
         console.log('📅 Found days array with', daysArray.length, 'entries');
         const normalizedDays = normalizeDaysArray(daysArray, context);
+
+        // Extract emoji from response or use default based on destination
+        const emoji = data.emoji || data.icone || selectDefaultEmoji(context.destinations);
+        console.log('🎨 Selected emoji:', emoji);
+
         return {
             title,
+            emoji,
             days: normalizedDays
         };
     }
@@ -190,9 +248,11 @@ function normalizeFromDaysArray(daysArray: any[], context: TripContext): Generat
     console.log('📅 Processing', daysArray.length, 'days from array');
 
     const normalizedDays = normalizeDaysArray(daysArray, context);
+    const emoji = selectDefaultEmoji(context.destinations);
 
     return {
         title: `Voyage à ${context.destinations.join(', ')}`,
+        emoji,
         days: normalizedDays
     };
 }
@@ -390,6 +450,7 @@ function createFallbackItinerary(context: TripContext): GeneratedItinerary {
 
     return {
         title: `Voyage à ${context.destinations.join(', ') || 'Nouvelle Destination'}`,
+        emoji: selectDefaultEmoji(context.destinations),
         days
     };
 }

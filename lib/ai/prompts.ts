@@ -52,10 +52,42 @@ CHAMPS OBLIGATOIRES POUR CHAQUE ACTIVITÉ:
 - locationText: Nom du lieu + quartier/adresse (ex: "Temple Senso-ji, Asakusa")
 - checklist: Liste de 2-4 éléments pratiques (ex: ["Réserver en avance", "Arriver tôt", "Apporter du liquide"])
 
+EMOJI DU VOYAGE:
+Choisis UN SEUL emoji qui représente le mieux la destination ou l'esprit du voyage:
+- 🍁 Canada, automne
+- 🗽 USA, New York
+- 🌴 Tropiques, Caraïbes, Thaïlande
+- 🏔️ Montagne, Alpes, trek
+- 🏝️ Îles, plages, Maldives
+- 🗼 Paris, France
+- 🏯 Japon
+- 🐘 Afrique, safari
+- 🦘 Australie
+- 🌵 Désert, Maroc, Arizona
+- 🏰 Europe médiévale, châteaux
+- 🎭 Voyage culturel, théâtre
+- 🎿 Sports d'hiver, ski
+- 🏄 Surf, sports nautiques
+- 🌍 Tour du monde, multi-pays
+- ⛵ Croisière, voile
+- 🚐 Road trip
+- 🌋 Volcans, Islande, Hawaii
+- 🐻 Nature sauvage, Canada
+- 🌸 Japon au printemps
+- ❄️ Hiver, Scandinavie, Laponie
+- ☀️ Méditerranée, été
+- 🍷 Œnotourisme, vignobles
+- 🍜 Voyage gastronomique, Asie
+- 🕌 Moyen-Orient, architecture islamique
+- 🛕 Inde, temples
+- 📸 Voyage photo
+- 🎒 Backpacking, aventure
+
 FORMAT DE RÉPONSE:
 Réponds UNIQUEMENT avec un JSON valide. Structure attendue:
 {
   "title": "Titre accrocheur du voyage (5-6 mots max)",
+  "emoji": "🍁",
   "days": [
     {
       "dayIndex": 1,

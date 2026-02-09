@@ -265,12 +265,28 @@ const NewTrip: React.FC = () => {
                 throw new Error(aiResult.error || 'AI generation failed');
             }
 
-            // Update trip title if AI provided a better one
-            if (aiResult.itinerary.title && !aiResult.fallback) {
-                await supabase
-                    .from('trips')
-                    .update({ title: aiResult.itinerary.title })
-                    .eq('id', trip.id);
+            // Update trip title and emoji if AI provided them
+            if (aiResult.itinerary && !aiResult.fallback) {
+                const updateData: any = {};
+
+                if (aiResult.itinerary.title) {
+                    updateData.title = aiResult.itinerary.title;
+                }
+
+                if (aiResult.itinerary.emoji) {
+                    // Merge emoji into existing preferences
+                    updateData.preferences = {
+                        ...trip.preferences,
+                        emoji: aiResult.itinerary.emoji
+                    };
+                }
+
+                if (Object.keys(updateData).length > 0) {
+                    await supabase
+                        .from('trips')
+                        .update(updateData)
+                        .eq('id', trip.id);
+                }
             }
 
             // 3. Insert Days with AI-generated titles
