@@ -614,9 +614,9 @@ const NewTrip: React.FC = () => {
         <div className="min-h-screen bg-dark-900 text-white pb-24 md:pb-20 overflow-x-hidden">
             <Navbar />
 
-            {/* Sticky Recap / Header - Redesigned */}
-            <div className="fixed top-20 left-0 right-0 z-40 px-4 flex justify-center pointer-events-none">
-                <div className="bg-gradient-to-br from-dark-800 via-dark-800 to-dark-900 rounded-[28px] border border-white/5 overflow-hidden shadow-2xl shadow-black/40 max-w-4xl w-full pointer-events-auto flex flex-col">
+            {/* Header / Recap - Static */}
+            <div className="pt-24 px-4 flex justify-center">
+                <div className="bg-gradient-to-br from-dark-800 via-dark-800 to-dark-900 rounded-[28px] border border-white/5 overflow-hidden shadow-2xl shadow-black/40 max-w-4xl w-full flex flex-col relative z-10">
                     {/* Progress Bar */}
                     <div className="h-1 bg-dark-800 w-full">
                         <div
@@ -671,7 +671,7 @@ const NewTrip: React.FC = () => {
                 </div>
             </div>
 
-            <main className="max-w-4xl mx-auto px-4 pt-48 pb-32 animate-in fade-in duration-700">
+            <main className="max-w-4xl mx-auto px-4 pt-8 pb-12 animate-in fade-in duration-700">
                 {renderStep()}
 
                 {/* Navigation Buttons */}
