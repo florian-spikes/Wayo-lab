@@ -59,27 +59,48 @@ export async function generateItinerary(context: TripContext): Promise<Generatio
         const response = result.response;
         const text = response.text();
 
+        console.log('📥 Raw AI response (first 500 chars):', text.substring(0, 500));
+
         // Parse JSON response
-        let itinerary: GeneratedItinerary;
+        let rawData: any;
         try {
-            itinerary = JSON.parse(text);
+            // Try to extract JSON from the response (handle potential markdown code blocks)
+            let jsonText = text.trim();
+
+            // Remove markdown code block if present
+            if (jsonText.startsWith('```json')) {
+                jsonText = jsonText.slice(7);
+            } else if (jsonText.startsWith('```')) {
+                jsonText = jsonText.slice(3);
+            }
+            if (jsonText.endsWith('```')) {
+                jsonText = jsonText.slice(0, -3);
+            }
+            jsonText = jsonText.trim();
+
+            rawData = JSON.parse(jsonText);
+            console.log('✅ JSON parsed successfully');
         } catch (parseError) {
-            console.error('Failed to parse AI response:', text);
+            console.error('❌ Failed to parse AI response as JSON:', text);
             throw new Error('Invalid JSON response from AI');
         }
 
-        // Validate basic structure
-        if (!itinerary.title || !itinerary.days || !Array.isArray(itinerary.days)) {
+        // Normalize the response structure (handle different key names)
+        const itinerary = normalizeItinerary(rawData, context);
+
+        if (!itinerary) {
+            console.error('❌ Could not normalize itinerary from:', rawData);
             throw new Error('Invalid itinerary structure');
         }
 
         // Ensure we have the right number of days
         if (itinerary.days.length !== context.durationDays) {
             console.warn(`AI generated ${itinerary.days.length} days, expected ${context.durationDays}. Adjusting...`);
-            itinerary = adjustDaysCount(itinerary, context.durationDays);
+            adjustDaysCount(itinerary, context.durationDays);
         }
 
         console.log('✅ Itinerary generated successfully:', itinerary.title);
+        console.log('📊 Days:', itinerary.days.length, 'Activities:', itinerary.days.reduce((sum, d) => sum + d.activities.length, 0));
 
         return {
             success: true,
@@ -97,6 +118,133 @@ export async function generateItinerary(context: TripContext): Promise<Generatio
             error: error.message
         };
     }
+}
+
+/**
+ * Normalize different possible response formats into our expected structure
+ */
+function normalizeItinerary(data: any, context: TripContext): GeneratedItinerary | null {
+    console.log('🔄 Normalizing itinerary structure...');
+    console.log('📋 Top-level keys:', Object.keys(data));
+
+    // Try to extract title
+    const title = data.title || data.titre || data.tripTitle || data.trip_title ||
+        `Voyage à ${context.destinations.join(', ')}`;
+
+    // Try to extract days array (handle various key names)
+    let daysArray = data.days || data.jours || data.itinerary || data.itineraire ||
+        data.schedule || data.planning || [];
+
+    if (!Array.isArray(daysArray)) {
+        console.error('❌ Days is not an array:', typeof daysArray);
+        return null;
+    }
+
+    if (daysArray.length === 0) {
+        console.warn('⚠️ Days array is empty');
+        return null;
+    }
+
+    console.log('📅 Found', daysArray.length, 'days');
+
+    // Normalize each day
+    const normalizedDays: GeneratedDay[] = daysArray.map((day: any, index: number) => {
+        // Extract day fields with fallbacks
+        const dayIndex = day.dayIndex || day.day_index || day.jour || day.number || (index + 1);
+        const dayTitle = day.title || day.titre || day.name || day.nom || `Jour ${dayIndex}`;
+        const location = day.location || day.lieu || day.ville || day.city || day.zone || context.destinations[0] || '';
+
+        // Extract activities with fallbacks
+        let activities = day.activities || day.activités || day.activites || day.events || day.evenements || [];
+
+        if (!Array.isArray(activities)) {
+            activities = [];
+        }
+
+        // Normalize each activity
+        const normalizedActivities = activities.map((act: any, actIndex: number) => ({
+            type: normalizeActivityType(act.type || act.category || act.categorie || 'autre'),
+            title: act.title || act.titre || act.name || act.nom || `Activité ${actIndex + 1}`,
+            description: act.description || act.desc || act.details || '',
+            startTime: normalizeTime(act.startTime || act.start_time || act.heure_debut || act.heureDebut || act.start),
+            endTime: normalizeTime(act.endTime || act.end_time || act.heure_fin || act.heureFin || act.end),
+            locationText: act.locationText || act.location_text || act.location || act.lieu || act.adresse || act.address,
+            costEstimate: typeof act.costEstimate === 'number' ? act.costEstimate :
+                typeof act.cost_estimate === 'number' ? act.cost_estimate :
+                    typeof act.cost === 'number' ? act.cost :
+                        typeof act.cout === 'number' ? act.cout : undefined
+        }));
+
+        return {
+            dayIndex,
+            title: dayTitle,
+            location,
+            activities: normalizedActivities
+        };
+    });
+
+    console.log('✅ Normalized', normalizedDays.length, 'days with total',
+        normalizedDays.reduce((sum, d) => sum + d.activities.length, 0), 'activities');
+
+    return {
+        title,
+        days: normalizedDays
+    };
+}
+
+/**
+ * Normalize activity type to match expected values
+ */
+function normalizeActivityType(type: string): string {
+    const typeMap: Record<string, string> = {
+        'activity': 'activité',
+        'meal': 'repas',
+        'food': 'repas',
+        'restaurant': 'repas',
+        'dining': 'repas',
+        'travel': 'transport',
+        'transportation': 'transport',
+        'transit': 'transport',
+        'visit': 'visite',
+        'sightseeing': 'visite',
+        'museum': 'visite',
+        'monument': 'visite',
+        'accommodation': 'logement',
+        'hotel': 'logement',
+        'lodging': 'logement',
+        'nature': 'nature',
+        'outdoor': 'nature',
+        'hiking': 'nature',
+        'beach': 'nature',
+        'other': 'autre',
+        'misc': 'autre'
+    };
+
+    const normalized = type.toLowerCase().trim();
+    return typeMap[normalized] || normalized || 'autre';
+}
+
+/**
+ * Normalize time format to HH:MM
+ */
+function normalizeTime(time: any): string | undefined {
+    if (!time) return undefined;
+
+    const str = String(time).trim();
+
+    // Already in HH:MM format
+    if (/^\d{1,2}:\d{2}$/.test(str)) {
+        const [h, m] = str.split(':');
+        return `${h.padStart(2, '0')}:${m}`;
+    }
+
+    // Handle "9h30" format
+    const frMatch = str.match(/^(\d{1,2})h(\d{2})?$/i);
+    if (frMatch) {
+        return `${frMatch[1].padStart(2, '0')}:${frMatch[2] || '00'}`;
+    }
+
+    return str;
 }
 
 /**
