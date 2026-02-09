@@ -18,7 +18,8 @@ import {
     TrendingUp,
     Star,
     Sparkles,
-    Plus
+    Plus,
+    Activity
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import MapboxAutocomplete from '../components/MapboxAutocomplete';
@@ -510,14 +511,16 @@ const NewTrip: React.FC = () => {
                                 <button
                                     key={b.id}
                                     onClick={() => updateFormData({ budget: b.id })}
-                                    className={`p-4 rounded-2xl border-2 text-left transition-all group hover:scale-[1.02] ${formData.budget === b.id ? 'bg-brand-500/10 border-brand-500 shadow-xl' : 'bg-dark-800/50 border-white/5 hover:border-white/20 hover:bg-dark-800'}`}
+                                    className={`p-3 md:p-4 rounded-xl md:rounded-2xl border-2 text-left transition-all group hover:scale-[1.02] ${formData.budget === b.id ? 'bg-brand-500/10 border-brand-500 shadow-xl' : 'bg-dark-800/50 border-white/5 hover:border-white/20 hover:bg-dark-800'}`}
                                 >
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className={`text-lg md:text-xl font-black transition-colors ${formData.budget === b.id ? 'text-brand-500' : 'text-gray-500 group-hover:text-white'}`}>{b.id}</span>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-2 md:gap-3">
+                                            <span className={`text-lg md:text-xl font-black transition-colors ${formData.budget === b.id ? 'text-brand-500' : 'text-gray-500 group-hover:text-white'}`}>{b.id}</span>
+                                            <span className="font-bold text-sm md:text-lg text-white">{b.label}</span>
+                                        </div>
                                         {formData.budget === b.id && <div className="w-5 h-5 bg-brand-500 rounded-full flex items-center justify-center shadow-lg shadow-brand-500/50"><Check size={12} className="text-white" /></div>}
                                     </div>
-                                    <p className="font-bold text-sm md:text-lg mb-1 text-white">{b.label}</p>
-                                    <p className="text-xs text-gray-500 group-hover:text-gray-400 transition-colors">{b.desc}</p>
+                                    <p className="text-xs text-gray-500 group-hover:text-gray-400 transition-colors pl-0.5">{b.desc}</p>
                                 </button>
                             ))}
                         </div>
@@ -653,47 +656,55 @@ const NewTrip: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth mask-linear-fade pr-4">
+                            <div
+                                className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth mask-linear-fade pr-4"
+                                ref={(el) => {
+                                    if (el) {
+                                        // Auto-scroll to end when content updates
+                                        el.scrollLeft = el.scrollWidth;
+                                    }
+                                }}
+                            >
                                 {/* Dynamic Recap Chips */}
                                 {formData.origin && (
-                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-xs font-bold text-gray-300 whitespace-nowrap">
-                                        <PlaneTakeoff size={12} className="text-brand-500" />
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-gray-300 whitespace-nowrap shrink-0">
+                                        <PlaneTakeoff size={13} className="text-brand-500" />
                                         <span className="truncate max-w-[100px]">{formData.origin.split(',')[0]}</span>
                                     </div>
                                 )}
                                 {formData.destinations.length > 0 && (
-                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-xs font-bold text-gray-300 whitespace-nowrap">
-                                        <PlaneLanding size={12} className="text-brand-500" />
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-gray-300 whitespace-nowrap shrink-0">
+                                        <PlaneLanding size={13} className="text-brand-500" />
                                         <span className="truncate max-w-[150px]">{formData.destinations.map(d => d.split(',')[0]).join(', ')}</span>
                                     </div>
                                 )}
                                 {formData.startDate && (
-                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-xs font-bold text-gray-300 whitespace-nowrap">
-                                        <CalendarIcon size={12} className="text-brand-500" />
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-gray-300 whitespace-nowrap shrink-0">
+                                        <CalendarIcon size={13} className="text-brand-500" />
                                         <span>{new Date(formData.startDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
                                         {formData.endDate && <span>- {new Date(formData.endDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
                                     </div>
                                 )}
                                 {formData.participants > 1 && (
-                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-xs font-bold text-gray-300 whitespace-nowrap">
-                                        <Users size={12} className="text-brand-500" />
-                                        <span>{formData.participants}</span>
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-gray-300 whitespace-nowrap shrink-0">
+                                        <Users size={13} className="text-brand-500" />
+                                        <span>{formData.participants} pers.</span>
                                     </div>
                                 )}
                                 {step > 3 && formData.budget && (
-                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-xs font-bold text-gray-300 whitespace-nowrap">
-                                        <span className="text-brand-500 text-xs">€</span>
-                                        <span>{formData.budget}</span>
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-gray-300 whitespace-nowrap shrink-0">
+                                        <span className="text-brand-500 font-black">{formData.budget}</span>
                                     </div>
                                 )}
                                 {step > 5 && formData.rhythm && (
-                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-xs font-bold text-gray-300 whitespace-nowrap">
-                                        <span className="text-base">{formData.rhythm.split(' ')[0]}</span>
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-gray-300 whitespace-nowrap shrink-0">
+                                        <Activity size={13} className="text-brand-500" />
+                                        <span>{formData.rhythm.split(' ')[1]}</span>
                                     </div>
                                 )}
                                 {step > 6 && formData.experiences.length > 0 && (
-                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 text-xs font-bold text-gray-300 whitespace-nowrap">
-                                        <Zap size={12} className="text-brand-500" />
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold text-gray-300 whitespace-nowrap shrink-0">
+                                        <Sparkles size={13} className="text-brand-500" />
                                         <span>{formData.experiences.length} exp.</span>
                                     </div>
                                 )}
@@ -728,7 +739,7 @@ const NewTrip: React.FC = () => {
                         <button
                             onClick={step === 7 ? handleCreateTrip : nextStep}
                             disabled={loading || (step === 1 && (!formData.origin || formData.destinations.length === 0))}
-                            className={`flex-1 h-12 md:h-16 rounded-xl md:rounded-2xl font-black text-base md:text-xl transition-all shadow-xl active:scale-[0.98] flex items-center justify-center gap-2 md:gap-3 disabled:opacity-30 disabled:cursor-not-allowed ${step === 7 ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 shadow-green-500/20' : 'bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 shadow-brand-500/20 text-white'}`}
+                            className={`flex-1 h-12 md:h-16 rounded-xl md:rounded-2xl font-black text-base md:text-xl transition-all shadow-xl active:scale-[0.98] flex items-center justify-center gap-2 md:gap-3 disabled:opacity-30 disabled:cursor-not-allowed bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 shadow-brand-500/20 text-white`}
                         >
                             {loading ? (
                                 <div className="flex items-center gap-2 md:gap-3">
