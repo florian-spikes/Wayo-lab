@@ -11,9 +11,9 @@ export const genAI = apiKey && apiKey !== 'your_gemini_api_key_here'
     ? new GoogleGenerativeAI(apiKey)
     : null;
 
-// Primary model: Gemini 1.5 Pro - higher quality and rate limits
+// Primary model: Gemini 1.5 Flash - stable with good rate limits
 export const geminiPro = genAI?.getGenerativeModel({
-    model: 'gemini-1.5-pro',
+    model: 'gemini-1.5-flash',
     generationConfig: {
         responseMimeType: 'application/json',
         temperature: 0.7,
