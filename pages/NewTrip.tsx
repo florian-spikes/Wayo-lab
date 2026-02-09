@@ -21,6 +21,7 @@ import {
     Plus
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
+import MapboxAutocomplete from '../components/MapboxAutocomplete';
 
 type DateMode = 'fixed' | 'flexible';
 
@@ -248,12 +249,12 @@ const NewTrip: React.FC = () => {
                                 <label className="text-xs font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wider">
                                     <PlaneTakeoff size={14} className="text-brand-500" /> Localisation de départ
                                 </label>
-                                <input
-                                    type="text"
+                                <MapboxAutocomplete
                                     value={formData.origin}
-                                    onChange={e => updateFormData({ origin: e.target.value })}
+                                    onChange={(val) => updateFormData({ origin: val })}
+                                    onSelect={(feature) => updateFormData({ origin: feature.place_name })}
                                     placeholder="Ex: France, Paris"
-                                    className="w-full bg-dark-800 border-2 border-white/5 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-brand-500 transition-all text-sm md:text-base font-medium shadow-inner placeholder:text-gray-600"
+                                    type="place"
                                 />
                             </div>
 
@@ -264,18 +265,13 @@ const NewTrip: React.FC = () => {
 
                                 <div className="space-y-3">
                                     <div className="flex gap-2">
-                                        <input
-                                            type="text"
+                                        <MapboxAutocomplete
                                             value={currentDestinationInput}
-                                            onChange={e => setCurrentDestinationInput(e.target.value)}
-                                            onKeyDown={e => {
-                                                if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    addDestination();
-                                                }
-                                            }}
+                                            onChange={setCurrentDestinationInput}
+                                            onSelect={() => { }} // You might want to auto-add on select, but for now user clicks +
                                             placeholder="Ex: Japon, New York..."
-                                            className="flex-1 bg-dark-800 border-2 border-white/5 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-brand-500 transition-all text-sm md:text-base font-medium shadow-inner placeholder:text-gray-600"
+                                            type="country" // Or 'place' if you want cities too
+                                            className="flex-1"
                                         />
                                         <button
                                             onClick={addDestination}
