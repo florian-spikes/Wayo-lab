@@ -126,31 +126,72 @@ export async function generateItinerary(context: TripContext): Promise<Generatio
 function normalizeItinerary(data: any, context: TripContext): GeneratedItinerary | null {
     console.log('🔄 Normalizing itinerary structure...');
     console.log('📋 Top-level keys:', Object.keys(data));
+    console.log('📋 Is array:', Array.isArray(data));
 
+    // CASE 1: AI returned an array directly (the days array)
+    if (Array.isArray(data)) {
+        console.log('📋 Response is a direct array of days');
+        return normalizeFromDaysArray(data, context);
+    }
+
+    // CASE 2: Standard object with title and days
     // Try to extract title
     const title = data.title || data.titre || data.tripTitle || data.trip_title ||
         `Voyage à ${context.destinations.join(', ')}`;
 
     // Try to extract days array (handle various key names)
     let daysArray = data.days || data.jours || data.itinerary || data.itineraire ||
-        data.schedule || data.planning || [];
+        data.schedule || data.planning;
 
-    if (!Array.isArray(daysArray)) {
-        console.error('❌ Days is not an array:', typeof daysArray);
-        return null;
+    if (Array.isArray(daysArray)) {
+        console.log('📅 Found days array with', daysArray.length, 'entries');
+        const normalizedDays = normalizeDaysArray(daysArray, context);
+        return {
+            title,
+            days: normalizedDays
+        };
     }
 
+    // CASE 3: Maybe the object itself is iterable (numbered keys like '0', '1', '2')
+    const numericKeys = Object.keys(data).filter(k => /^\d+$/.test(k));
+    if (numericKeys.length > 0) {
+        console.log('📋 Found numeric keys, treating as array');
+        const arrayFromObject = numericKeys
+            .sort((a, b) => parseInt(a) - parseInt(b))
+            .map(k => data[k]);
+        return normalizeFromDaysArray(arrayFromObject, context);
+    }
+
+    console.error('❌ Could not find days array in response');
+    return null;
+}
+
+/**
+ * Normalize when we have a direct array of days
+ */
+function normalizeFromDaysArray(daysArray: any[], context: TripContext): GeneratedItinerary | null {
     if (daysArray.length === 0) {
         console.warn('⚠️ Days array is empty');
         return null;
     }
 
-    console.log('📅 Found', daysArray.length, 'days');
+    console.log('📅 Processing', daysArray.length, 'days from array');
 
-    // Normalize each day
-    const normalizedDays: GeneratedDay[] = daysArray.map((day: any, index: number) => {
+    const normalizedDays = normalizeDaysArray(daysArray, context);
+
+    return {
+        title: `Voyage à ${context.destinations.join(', ')}`,
+        days: normalizedDays
+    };
+}
+
+/**
+ * Normalize an array of day objects
+ */
+function normalizeDaysArray(daysArray: any[], context: TripContext): GeneratedDay[] {
+    return daysArray.map((day: any, index: number) => {
         // Extract day fields with fallbacks
-        const dayIndex = day.dayIndex || day.day_index || day.jour || day.number || (index + 1);
+        const dayIndex = day.dayIndex || day.day_index || day.jour || day.day || day.number || (index + 1);
         const dayTitle = day.title || day.titre || day.name || day.nom || `Jour ${dayIndex}`;
         const location = day.location || day.lieu || day.ville || day.city || day.zone || context.destinations[0] || '';
 
@@ -176,20 +217,12 @@ function normalizeItinerary(data: any, context: TripContext): GeneratedItinerary
         }));
 
         return {
-            dayIndex,
+            dayIndex: typeof dayIndex === 'number' ? dayIndex : index + 1,
             title: dayTitle,
             location,
             activities: normalizedActivities
         };
     });
-
-    console.log('✅ Normalized', normalizedDays.length, 'days with total',
-        normalizedDays.reduce((sum, d) => sum + d.activities.length, 0), 'activities');
-
-    return {
-        title,
-        days: normalizedDays
-    };
 }
 
 /**
