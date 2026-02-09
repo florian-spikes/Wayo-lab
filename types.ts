@@ -35,6 +35,7 @@ export interface Trip {
     experiences?: string[];
     notes?: string;
     emoji?: string;
+    destinations?: string[];
   };
   // Include joined members for dashboard display
   trip_members?: { count: number }[];
