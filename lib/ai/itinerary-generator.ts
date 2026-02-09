@@ -205,11 +205,12 @@ function normalizeDaysArray(daysArray: any[], context: TripContext): GeneratedDa
         // Normalize each activity
         const normalizedActivities = activities.map((act: any, actIndex: number) => ({
             type: normalizeActivityType(act.type || act.category || act.categorie || 'autre'),
-            title: act.title || act.titre || act.name || act.nom || `Activité ${actIndex + 1}`,
+            title: act.title || act.titre || act.name || act.nom || act.description?.substring(0, 50) || `Activité ${actIndex + 1}`,
             description: act.description || act.desc || act.details || '',
-            startTime: normalizeTime(act.startTime || act.start_time || act.heure_debut || act.heureDebut || act.start),
-            endTime: normalizeTime(act.endTime || act.end_time || act.heure_fin || act.heureFin || act.end),
+            startTime: normalizeTime(act.startTime || act.start_time || act.heure_debut || act.heureDebut || act.heure || act.start),
+            duration: normalizeDuration(act.duration || act.duree || act.durée),
             locationText: act.locationText || act.location_text || act.location || act.lieu || act.adresse || act.address,
+            checklist: normalizeChecklist(act.checklist || act.checkList || act.items || act.todo),
             costEstimate: typeof act.costEstimate === 'number' ? act.costEstimate :
                 typeof act.cost_estimate === 'number' ? act.cost_estimate :
                     typeof act.cost === 'number' ? act.cost :
@@ -230,31 +231,111 @@ function normalizeDaysArray(daysArray: any[], context: TripContext): GeneratedDa
  */
 function normalizeActivityType(type: string): string {
     const typeMap: Record<string, string> = {
+        // English mappings
         'activity': 'activité',
         'meal': 'repas',
         'food': 'repas',
         'restaurant': 'repas',
         'dining': 'repas',
+        'breakfast': 'repas',
+        'lunch': 'repas',
+        'dinner': 'repas',
         'travel': 'transport',
         'transportation': 'transport',
         'transit': 'transport',
-        'visit': 'visite',
-        'sightseeing': 'visite',
-        'museum': 'visite',
-        'monument': 'visite',
-        'accommodation': 'logement',
-        'hotel': 'logement',
-        'lodging': 'logement',
+        'flight': 'transport',
+        'train': 'transport',
+        'visit': 'culture',
+        'sightseeing': 'culture',
+        'museum': 'culture',
+        'monument': 'culture',
+        'temple': 'culture',
+        'church': 'culture',
+        'accommodation': 'hébergement',
+        'hotel': 'hébergement',
+        'lodging': 'hébergement',
+        'logement': 'hébergement',
+        'visite': 'culture',
         'nature': 'nature',
         'outdoor': 'nature',
         'hiking': 'nature',
         'beach': 'nature',
+        'park': 'nature',
+        'garden': 'nature',
+        'shopping': 'shopping',
+        'market': 'shopping',
+        'store': 'shopping',
+        'culture': 'culture',
+        'show': 'culture',
+        'spectacle': 'culture',
+        'concert': 'culture',
         'other': 'autre',
         'misc': 'autre'
     };
 
     const normalized = type.toLowerCase().trim();
     return typeMap[normalized] || normalized || 'autre';
+}
+
+/**
+ * Normalize duration to standard format
+ */
+function normalizeDuration(duration: any): string | undefined {
+    if (!duration) return undefined;
+
+    const str = String(duration).toLowerCase().trim();
+
+    // Already in correct format
+    if (/^\d+h(\d+)?$/.test(str) || /^\d+m$/.test(str)) {
+        return str;
+    }
+
+    // Handle "1 hour", "2 hours" format
+    const hourMatch = str.match(/(\d+)\s*hour/i);
+    if (hourMatch) {
+        return `${hourMatch[1]}h`;
+    }
+
+    // Handle "30 min", "90 minutes" format
+    const minMatch = str.match(/(\d+)\s*min/i);
+    if (minMatch) {
+        const mins = parseInt(minMatch[1]);
+        if (mins >= 60) {
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            return m > 0 ? `${h}h${m}` : `${h}h`;
+        }
+        return `${mins}m`;
+    }
+
+    // Handle "1:30" format
+    const timeMatch = str.match(/(\d+):(\d+)/);
+    if (timeMatch) {
+        const h = parseInt(timeMatch[1]);
+        const m = parseInt(timeMatch[2]);
+        return m > 0 ? `${h}h${m}` : `${h}h`;
+    }
+
+    return str;
+}
+
+/**
+ * Normalize checklist to array of strings
+ */
+function normalizeChecklist(checklist: any): string[] | undefined {
+    if (!checklist) return undefined;
+
+    if (Array.isArray(checklist)) {
+        return checklist
+            .map(item => typeof item === 'string' ? item : item?.text || item?.label || String(item))
+            .filter(item => item && item.length > 0);
+    }
+
+    if (typeof checklist === 'string') {
+        return checklist.split(/[,;]/).map(s => s.trim()).filter(s => s.length > 0);
+    }
+
+    return undefined;
 }
 
 /**

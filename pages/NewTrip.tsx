@@ -149,6 +149,39 @@ const NewTrip: React.FC = () => {
         }));
     };
 
+    // Helper function to compute end time from start time + duration
+    const computeEndTime = (startTime: string, duration: string): string | null => {
+        if (!startTime || !duration) return null;
+
+        try {
+            const [hours, minutes] = startTime.split(':').map(Number);
+            let durationMins = 0;
+
+            // Parse duration like "1h30", "2h", "30m"
+            const hMatch = duration.match(/(\d+)h/);
+            const mMatch = duration.match(/(\d+)m/);
+
+            if (hMatch) durationMins += parseInt(hMatch[1]) * 60;
+            if (mMatch) durationMins += parseInt(mMatch[1]);
+
+            // Also handle "1h30" format without 'm'
+            const combinedMatch = duration.match(/(\d+)h(\d+)$/);
+            if (combinedMatch) {
+                durationMins = parseInt(combinedMatch[1]) * 60 + parseInt(combinedMatch[2]);
+            }
+
+            if (durationMins === 0) durationMins = 60; // Default 1 hour
+
+            const totalMins = hours * 60 + minutes + durationMins;
+            const endHours = Math.floor(totalMins / 60) % 24;
+            const endMins = totalMins % 60;
+
+            return `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`;
+        } catch {
+            return null;
+        }
+    };
+
     const handleCreateTrip = async () => {
         if (!user) return;
         setLoading(true);
@@ -269,12 +302,19 @@ const NewTrip: React.FC = () => {
             // 4. Insert Cards (activities) from AI
             if (insertedDays && !aiResult.fallback) {
                 const cardsToInsert: any[] = [];
+                const checklistsToInsert: { cardIndex: number; items: string[] }[] = [];
 
                 for (const day of aiResult.itinerary.days) {
                     const dbDay = insertedDays.find(d => d.day_index === day.dayIndex);
                     if (!dbDay) continue;
 
                     day.activities.forEach((activity, actIndex) => {
+                        // Compute end_time from startTime + duration
+                        let endTime: string | null = null;
+                        if (activity.startTime && activity.duration) {
+                            endTime = computeEndTime(activity.startTime, activity.duration);
+                        }
+
                         cardsToInsert.push({
                             trip_id: trip.id,
                             day_id: dbDay.id,
@@ -282,24 +322,60 @@ const NewTrip: React.FC = () => {
                             title: activity.title,
                             description: activity.description,
                             start_time: activity.startTime || null,
-                            end_time: activity.endTime || null,
+                            end_time: endTime,
                             location_text: activity.locationText || null,
                             cost_estimate: activity.costEstimate || null,
                             order_index: actIndex,
                             source: 'ai',
                             created_by: user.id
                         });
+
+                        // Store checklist for later insertion
+                        if (activity.checklist && activity.checklist.length > 0) {
+                            checklistsToInsert.push({
+                                cardIndex: cardsToInsert.length - 1,
+                                items: activity.checklist
+                            });
+                        }
                     });
                 }
 
                 if (cardsToInsert.length > 0) {
-                    const { error: cardsError } = await supabase
+                    const { data: insertedCards, error: cardsError } = await supabase
                         .from('cards')
-                        .insert(cardsToInsert);
+                        .insert(cardsToInsert)
+                        .select('id');
 
                     if (cardsError) {
                         console.error('Error inserting AI cards:', cardsError);
                         // Don't throw - trip is still valid without cards
+                    } else if (insertedCards && checklistsToInsert.length > 0) {
+                        // Insert checklists for the created cards
+                        const checklistItems: any[] = [];
+
+                        checklistsToInsert.forEach(({ cardIndex, items }) => {
+                            const card = insertedCards[cardIndex];
+                            if (!card) return;
+
+                            items.forEach(label => {
+                                checklistItems.push({
+                                    card_id: card.id,
+                                    trip_id: trip.id,
+                                    checklist_data: { label },
+                                    is_completed: false
+                                });
+                            });
+                        });
+
+                        if (checklistItems.length > 0) {
+                            const { error: checklistError } = await supabase
+                                .from('checklists')
+                                .insert(checklistItems);
+
+                            if (checklistError) {
+                                console.error('Error inserting checklists:', checklistError);
+                            }
+                        }
                     }
                 }
             }
@@ -949,8 +1025,8 @@ const NewTrip: React.FC = () => {
                                     <div
                                         key={s}
                                         className={`h-2 rounded-full transition-all duration-500 ${isActive ? 'w-8 bg-brand-500' :
-                                                isComplete ? 'w-2 bg-brand-500' :
-                                                    'w-2 bg-gray-700'
+                                            isComplete ? 'w-2 bg-brand-500' :
+                                                'w-2 bg-gray-700'
                                             }`}
                                     />
                                 );

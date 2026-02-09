@@ -27,12 +27,13 @@ export interface TripContext {
  * Generated activity structure (maps to cards table)
  */
 export interface GeneratedActivity {
-    type: 'activité' | 'repas' | 'transport' | 'visite' | 'logement' | 'nature' | 'autre';
+    type: 'activité' | 'repas' | 'transport' | 'hébergement' | 'shopping' | 'culture' | 'nature' | 'autre';
     title: string;
     description: string;
     startTime?: string; // "09:00" format
-    endTime?: string;   // "11:30" format
+    duration?: string;  // "30m", "1h", "1h30", "2h", etc.
     locationText?: string;
+    checklist?: string[]; // Items to prepare or remember
     costEstimate?: number;
 }
 
@@ -76,17 +77,22 @@ export const ITINERARY_JSON_SCHEMA = {
                             properties: {
                                 type: {
                                     type: "string",
-                                    enum: ["activité", "repas", "transport", "visite", "logement", "nature", "autre"],
-                                    description: "Type d'activité"
+                                    enum: ["activité", "repas", "transport", "hébergement", "shopping", "culture", "nature", "autre"],
+                                    description: "Catégorie de l'activité"
                                 },
-                                title: { type: "string", description: "Titre de l'activité" },
-                                description: { type: "string", description: "Description détaillée (2-3 phrases max)" },
+                                title: { type: "string", description: "Titre concis de l'activité" },
+                                description: { type: "string", description: "Description détaillée (2-3 phrases)" },
                                 startTime: { type: "string", description: "Heure de début format HH:MM (ex: '09:00')" },
-                                endTime: { type: "string", description: "Heure de fin format HH:MM (ex: '11:30')" },
-                                locationText: { type: "string", description: "Lieu précis (adresse ou nom du lieu)" },
-                                costEstimate: { type: "number", description: "Estimation du coût en euros" }
+                                duration: { type: "string", description: "Durée (ex: '30m', '1h', '1h30', '2h', '3h')" },
+                                locationText: { type: "string", description: "Lieu précis (nom + adresse si possible)" },
+                                checklist: {
+                                    type: "array",
+                                    items: { type: "string" },
+                                    description: "Liste de choses à préparer ou retenir (2-4 items max)"
+                                },
+                                costEstimate: { type: "number", description: "Coût estimé par personne en euros" }
                             },
-                            required: ["type", "title", "description"]
+                            required: ["type", "title", "description", "startTime", "duration"]
                         }
                     }
                 },

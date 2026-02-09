@@ -24,21 +24,40 @@ RÈGLES STRICTES:
 5. HORAIRES RÉALISTES: Les horaires doivent tenir compte des temps de trajet et des heures d'ouverture.
 6. EXPÉRIENCES: Intègre les types d'expériences demandés (culture, gastronomie, nature, etc.).
 
-FORMAT DES HORAIRES:
-- Utilise le format "HH:MM" (ex: "09:00", "14:30")
-- Prévois des pauses entre les activités
+CATÉGORIES D'ACTIVITÉS (utilise exactement ces valeurs):
+- "activité": Loisir, sport, divertissement
+- "repas": Restaurant, café, dégustation, street food
+- "transport": Déplacement (vol, train, ferry, taxi, métro)
+- "hébergement": Check-in/check-out hôtel, Airbnb
+- "shopping": Shopping, marchés, souvenirs
+- "culture": Musée, monument, temple, spectacle, visite guidée
+- "nature": Randonnée, plage, parc, jardin, point de vue
+- "autre": Autre activité
 
-TYPES D'ACTIVITÉS DISPONIBLES:
-- "activité": Activité générale, loisir
-- "repas": Restaurant, café, dégustation
-- "transport": Déplacement (train, avion, ferry, etc.)
-- "visite": Musée, monument, site touristique
-- "logement": Check-in/check-out hôtel
-- "nature": Randonnée, plage, parc
-- "autre": Autre type d'activité
+CHAMPS OBLIGATOIRES POUR CHAQUE ACTIVITÉ:
+- type: Une des catégories ci-dessus
+- title: Titre concis et accrocheur (ex: "Petit-déjeuner au marché de Tsukiji")
+- description: 2-3 phrases décrivant l'activité et pourquoi elle est recommandée
+- startTime: Heure de début format "HH:MM" (ex: "09:00")
+- duration: Durée estimée (formats acceptés: "30m", "1h", "1h30", "2h", "3h", "4h")
+- locationText: Nom du lieu + quartier/adresse (ex: "Temple Senso-ji, Asakusa")
+- checklist: Liste de 2-4 éléments pratiques (ex: ["Réserver en avance", "Arriver tôt", "Apporter du liquide"])
 
-RÉPONSE:
-Réponds UNIQUEMENT avec un JSON valide suivant le schéma demandé. Pas de texte avant ou après.`;
+FORMAT DE RÉPONSE:
+Réponds UNIQUEMENT avec un JSON valide. Structure attendue:
+{
+  "title": "Titre du voyage",
+  "days": [
+    {
+      "dayIndex": 1,
+      "title": "Titre du jour",
+      "location": "Ville principale",
+      "activities": [...]
+    }
+  ]
+}
+
+Pas de texte avant ou après le JSON.`;
 }
 
 /**
