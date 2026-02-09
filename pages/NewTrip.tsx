@@ -238,31 +238,31 @@ const NewTrip: React.FC = () => {
         switch (step) {
             case 1:
                 return (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="text-center space-y-2">
-                            <h2 className="text-3xl md:text-4xl font-black italic tracking-tight">Où commence l'aventure ?</h2>
-                            <p className="text-gray-400">Définissons les bases de votre périple.</p>
+                    <div className="space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="text-center space-y-1 md:space-y-2">
+                            <h2 className="text-xl md:text-2xl font-black tracking-tight">Où commence l'aventure ?</h2>
+                            <p className="text-sm md:text-base text-gray-400">Définissons les bases de votre périple.</p>
                         </div>
-                        <div className="grid grid-cols-1 gap-6 max-w-lg mx-auto">
-                            <div className="space-y-3">
-                                <label className="text-sm font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wider">
-                                    <PlaneTakeoff size={16} className="text-brand-500" /> Pays de départ
+                        <div className="grid grid-cols-1 gap-4 max-w-lg mx-auto">
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wider">
+                                    <PlaneTakeoff size={14} className="text-brand-500" /> Pays de départ
                                 </label>
                                 <input
                                     type="text"
                                     value={formData.origin}
                                     onChange={e => updateFormData({ origin: e.target.value })}
                                     placeholder="Ex: France, Paris"
-                                    className="w-full bg-dark-800 border-2 border-white/5 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-brand-500 transition-all text-lg font-medium shadow-inner placeholder:text-gray-600"
+                                    className="w-full bg-dark-800 border-2 border-white/5 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-brand-500 transition-all text-sm md:text-base font-medium shadow-inner placeholder:text-gray-600"
                                 />
                             </div>
 
-                            <div className="space-y-3">
-                                <label className="text-sm font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wider">
-                                    <PlaneLanding size={16} className="text-brand-500" /> Pays d'arrivée / Destinations
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-400 flex items-center gap-2 uppercase tracking-wider">
+                                    <PlaneLanding size={14} className="text-brand-500" /> Pays d'arrivée / Destinations
                                 </label>
 
-                                <div className="space-y-4">
+                                <div className="space-y-3">
                                     <div className="flex gap-2">
                                         <input
                                             type="text"
@@ -275,14 +275,14 @@ const NewTrip: React.FC = () => {
                                                 }
                                             }}
                                             placeholder="Ex: Japon, Italie..."
-                                            className="flex-1 bg-dark-800 border-2 border-white/5 rounded-2xl py-4 px-6 text-white focus:outline-none focus:border-brand-500 transition-all text-lg font-medium shadow-inner placeholder:text-gray-600"
+                                            className="flex-1 bg-dark-800 border-2 border-white/5 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-brand-500 transition-all text-sm md:text-base font-medium shadow-inner placeholder:text-gray-600"
                                         />
                                         <button
                                             onClick={addDestination}
                                             disabled={!currentDestinationInput.trim()}
-                                            className="bg-brand-500 text-white p-4 rounded-2xl hover:bg-brand-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-brand-500/20"
+                                            className="bg-brand-500 text-white p-3 rounded-xl hover:bg-brand-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-brand-500/20"
                                         >
-                                            <Plus size={24} />
+                                            <Plus size={20} />
                                         </button>
                                     </div>
 
@@ -290,67 +290,66 @@ const NewTrip: React.FC = () => {
                                     {formData.destinations.length > 0 && (
                                         <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
                                             {formData.destinations.map((dest, idx) => (
-                                                <div key={idx} className="bg-white/10 border border-white/10 rounded-xl px-4 py-2 flex items-center gap-3 group hover:bg-white/15 transition-colors">
-                                                    <span className="font-bold">{dest}</span>
+                                                <div key={idx} className="bg-white/10 border border-white/10 rounded-lg px-3 py-1.5 flex items-center gap-2 group hover:bg-white/15 transition-colors">
+                                                    <span className="font-bold text-sm">{dest}</span>
                                                     <button
                                                         onClick={() => removeDestination(idx)}
-                                                        className="text-gray-400 hover:text-red-400 transition-colors p-1"
+                                                        className="text-gray-400 hover:text-red-400 transition-colors p-0.5"
                                                     >
-                                                        <X size={14} />
+                                                        <X size={12} />
                                                     </button>
                                                 </div>
                                             ))}
                                         </div>
                                     )}
                                     {formData.destinations.length === 0 && (
-                                        <p className="text-xs text-gray-500 italic pl-2">Ajoutez au moins une destination.</p>
+                                        <p className="text-[10px] text-gray-500 italic pl-1">Ajoutez au moins une destination.</p>
                                     )}
                                 </div>
                             </div>
                         </div>
                     </div>
                 );
-            // ... (Previous steps remain the same)
 
             case 2:
                 return (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="text-center space-y-2">
-                            <h2 className="text-3xl md:text-4xl font-black italic tracking-tight">Quand partez-vous ?</h2>
-                            <p className="text-gray-400">Choisissez vos dates ou une période approximative.</p>
+                    <div className="space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="text-center space-y-1 md:space-y-2">
+                            <h2 className="text-xl md:text-2xl font-black tracking-tight">Quand partez-vous ?</h2>
+                            <p className="text-sm md:text-base text-gray-400">Choisissez vos dates ou une période approximative.</p>
                         </div>
 
-                        <div className="flex bg-dark-800 p-1.5 rounded-2xl border border-white/5 max-w-sm mx-auto shadow-inner">
+                        <div className="flex bg-dark-800 p-1 rounded-xl border border-white/5 max-w-xs mx-auto shadow-inner">
                             <button
                                 onClick={() => updateFormData({ dateMode: 'fixed' })}
-                                className={`flex-1 py-3 px-6 rounded-xl font-bold text-sm transition-all ${formData.dateMode === 'fixed' ? 'bg-brand-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                className={`flex-1 py-2 px-3 rounded-lg font-bold text-xs md:text-sm transition-all ${formData.dateMode === 'fixed' ? 'bg-brand-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                             >
-                                J'ai des dates précises
+                                J'ai des dates
                             </button>
                             <button
                                 onClick={() => updateFormData({ dateMode: 'flexible' })}
-                                className={`flex-1 py-3 px-6 rounded-xl font-bold text-sm transition-all ${formData.dateMode === 'flexible' ? 'bg-brand-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                className={`flex-1 py-2 px-3 rounded-lg font-bold text-xs md:text-sm transition-all ${formData.dateMode === 'flexible' ? 'bg-brand-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
                             >
                                 Je suis flexible
                             </button>
                         </div>
 
                         {formData.dateMode === 'fixed' ? (
-                            <div className="space-y-6 max-w-md mx-auto">
-                                <div className="bg-dark-800 p-6 rounded-[32px] border border-white/5 shadow-2xl">
+                            <div className="space-y-4 max-w-sm mx-auto">
+                                <div className="bg-dark-800 p-4 rounded-[24px] border border-white/5 shadow-2xl">
                                     {/* Calendar Header */}
-                                    <div className="flex justify-between items-center mb-6">
+                                    <div className="flex justify-between items-center mb-4">
                                         <button
                                             onClick={() => {
                                                 const d = new Date(currentMonthView);
                                                 d.setMonth(d.getMonth() - 1);
                                                 setCurrentMonthView(d);
                                             }}
-                                            className="p-3 hover:bg-white/5 rounded-full transition-colors active:scale-95"
+                                            className="p-2 hover:bg-white/5 rounded-full transition-colors active:scale-95"
                                         >
-                                            <ChevronLeft size={20} />
+                                            <ChevronLeft size={16} />
                                         </button>
-                                        <h3 className="font-black text-lg first-letter:uppercase">
+                                        <h3 className="font-black text-base first-letter:uppercase">
                                             {currentMonthView.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
                                         </h3>
                                         <button
@@ -359,21 +358,21 @@ const NewTrip: React.FC = () => {
                                                 d.setMonth(d.getMonth() + 1);
                                                 setCurrentMonthView(d);
                                             }}
-                                            className="p-3 hover:bg-white/5 rounded-full transition-colors active:scale-95"
+                                            className="p-2 hover:bg-white/5 rounded-full transition-colors active:scale-95"
                                         >
-                                            <ChevronRight size={20} />
+                                            <ChevronRight size={16} />
                                         </button>
                                     </div>
 
                                     {/* Days Label */}
-                                    <div className="grid grid-cols-7 gap-1 mb-3">
+                                    <div className="grid grid-cols-7 gap-1 mb-2">
                                         {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(day => (
-                                            <div key={day} className="text-center text-[10px] uppercase tracking-widest font-black text-gray-500 py-1">{day}</div>
+                                            <div key={day} className="text-center text-[10px] uppercase tracking-wider font-bold text-gray-500">{day}</div>
                                         ))}
                                     </div>
 
                                     {/* Calendar Grid */}
-                                    <div className="grid grid-cols-7 gap-1.5">
+                                    <div className="grid grid-cols-7 gap-1">
                                         {(() => {
                                             const days = [];
                                             const firstDayOfMonth = new Date(currentMonthView.getFullYear(), currentMonthView.getMonth(), 1);
@@ -384,7 +383,7 @@ const NewTrip: React.FC = () => {
                                             if (startPadding === -1) startPadding = 6;
 
                                             for (let i = 0; i < startPadding; i++) {
-                                                days.push(<div key={`pad-${i}`} className="p-2"></div>);
+                                                days.push(<div key={`pad-${i}`} className="p-1"></div>);
                                             }
 
                                             for (let d = 1; d <= lastDayOfMonth.getDate(); d++) {
@@ -407,7 +406,7 @@ const NewTrip: React.FC = () => {
                                                                 updateFormData({ endDate: dateString });
                                                             }
                                                         }}
-                                                        className={`relative h-10 w-full flex items-center justify-center rounded-xl text-sm font-bold transition-all
+                                                        className={`relative h-9 w-full flex items-center justify-center rounded-lg text-xs font-bold transition-all
                                                             ${isStart || isEnd ? 'bg-brand-500 text-white shadow-lg z-10 scale-105' : ''}
                                                             ${inRange ? 'bg-brand-500/10 text-brand-400 rounded-none' : ''}
                                                             ${!isStart && !isEnd && !inRange ? 'hover:bg-white/10 text-gray-300 hover:text-white' : ''}
@@ -431,21 +430,21 @@ const NewTrip: React.FC = () => {
 
                                 {formData.startDate && formData.endDate && (
                                     <div className="text-center animate-in fade-in zoom-in duration-300">
-                                        <div className="inline-block bg-brand-500/10 border border-brand-500/20 px-6 py-3 rounded-2xl shadow-lg shadow-brand-500/5">
-                                            <span className="text-brand-500 font-black text-2xl mr-2">
+                                        <div className="inline-block bg-brand-500/10 border border-brand-500/20 px-4 py-2 rounded-xl shadow-lg shadow-brand-500/5">
+                                            <span className="text-brand-500 font-black text-lg mr-2">
                                                 {Math.ceil((new Date(formData.endDate).getTime() - new Date(formData.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1}
                                             </span>
-                                            <span className="text-white font-bold text-sm uppercase tracking-wide">jours d'aventure</span>
+                                            <span className="text-white font-bold text-xs uppercase tracking-wide">jours d'aventure</span>
                                         </div>
                                     </div>
                                 )}
                             </div>
                         ) : (
-                            <div className="space-y-10 max-w-md mx-auto bg-dark-800 p-8 rounded-[32px] border border-white/5 shadow-2xl">
-                                <div className="space-y-6">
+                            <div className="space-y-6 max-w-xs mx-auto bg-dark-800 p-6 rounded-[24px] border border-white/5 shadow-2xl">
+                                <div className="space-y-4">
                                     <div className="flex justify-between items-end">
-                                        <label className="text-sm font-bold text-gray-400 uppercase tracking-wider">Durée estimée</label>
-                                        <span className="text-3xl font-black text-white">{formData.approxDuration} <span className="text-base font-bold text-gray-500">jours</span></span>
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Durée estimée</label>
+                                        <span className="text-2xl font-black text-white">{formData.approxDuration} <span className="text-xs font-bold text-gray-500">jours</span></span>
                                     </div>
                                     <input
                                         type="range"
@@ -453,21 +452,21 @@ const NewTrip: React.FC = () => {
                                         max="60"
                                         value={formData.approxDuration}
                                         onChange={e => updateFormData({ approxDuration: parseInt(e.target.value) })}
-                                        className="w-full h-4 bg-dark-900 rounded-full appearance-none cursor-pointer accent-brand-500 shadow-inner"
+                                        className="w-full h-3 bg-dark-900 rounded-full appearance-none cursor-pointer accent-brand-500 shadow-inner"
                                     />
-                                    <div className="flex justify-between text-xs text-gray-600 font-bold uppercase tracking-widest">
+                                    <div className="flex justify-between text-[10px] text-gray-600 font-bold uppercase tracking-widest">
                                         <span>Week-end</span>
                                         <span>2 mois</span>
                                     </div>
                                 </div>
-                                <div className="space-y-4">
-                                    <label className="text-sm font-bold text-gray-400 uppercase tracking-wider">Saison idéale</label>
-                                    <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-3">
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Saison idéale</label>
+                                    <div className="grid grid-cols-2 gap-2">
                                         {['🌸 Printemps', '☀️ Été', '🍂 Automne', '❄️ Hiver'].map(s => (
                                             <button
                                                 key={s}
                                                 onClick={() => updateFormData({ season: s })}
-                                                className={`py-4 rounded-2xl border-2 transition-all font-bold text-sm ${formData.season === s ? 'bg-brand-500/20 border-brand-500 text-white shadow-lg' : 'bg-dark-900 border-transparent hover:bg-dark-700 text-gray-400 hover:text-white'}`}
+                                                className={`py-3 rounded-xl border-2 transition-all font-bold text-xs ${formData.season === s ? 'bg-brand-500/20 border-brand-500 text-white shadow-lg' : 'bg-dark-900 border-transparent hover:bg-dark-700 text-gray-400 hover:text-white'}`}
                                             >
                                                 {s}
                                             </button>
@@ -481,20 +480,20 @@ const NewTrip: React.FC = () => {
 
             case 6:
                 return (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="text-center space-y-2">
-                            <h2 className="text-3xl md:text-4xl font-black italic tracking-tight">Quelles expériences ?</h2>
-                            <p className="text-gray-400">Sélectionnez ce que vous aimez (plusieurs choix possibles).</p>
+                    <div className="space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="text-center space-y-1 md:space-y-2">
+                            <h2 className="text-xl md:text-2xl font-black tracking-tight">Quelles expériences ?</h2>
+                            <p className="text-sm md:text-base text-gray-400">Ce que vous aimez.</p>
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-w-xl mx-auto">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-xl mx-auto">
                             {categories.map(c => (
                                 <button
                                     key={c.id}
                                     onClick={() => toggleExperience(c.id)}
-                                    className={`aspect-square p-4 rounded-3xl border-2 flex flex-col items-center justify-center gap-4 transition-all group ${formData.experiences.includes(c.id) ? 'bg-brand-500 border-brand-500 shadow-brand-500/20 shadow-xl scale-105' : 'bg-dark-800 border-white/5 hover:border-white/20 hover:bg-dark-700'}`}
+                                    className={`aspect-square p-3 rounded-2xl md:rounded-3xl border-2 flex flex-col items-center justify-center gap-3 transition-all group ${formData.experiences.includes(c.id) ? 'bg-brand-500 border-brand-500 shadow-brand-500/20 shadow-xl scale-105' : 'bg-dark-800 border-white/5 hover:border-white/20 hover:bg-dark-700'}`}
                                 >
-                                    <span className="text-4xl group-hover:scale-110 transition-transform duration-300">{c.icon}</span>
-                                    <span className={`font-bold text-sm text-center ${formData.experiences.includes(c.id) ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>{c.name}</span>
+                                    <span className="text-3xl md:text-4xl group-hover:scale-110 transition-transform duration-300">{c.icon}</span>
+                                    <span className={`font-bold text-xs md:text-sm text-center ${formData.experiences.includes(c.id) ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>{c.name}</span>
                                 </button>
                             ))}
                         </div>
@@ -505,24 +504,24 @@ const NewTrip: React.FC = () => {
 
             case 3:
                 return (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="text-center space-y-2">
-                            <h2 className="text-3xl md:text-4xl font-black italic tracking-tight">Quel est votre budget ?</h2>
-                            <p className="text-gray-400">Choisissez le niveau de confort qui vous correspond.</p>
+                    <div className="space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="text-center space-y-1 md:space-y-2">
+                            <h2 className="text-xl md:text-2xl font-black tracking-tight">Quel est votre budget ?</h2>
+                            <p className="text-sm md:text-base text-gray-400">Le niveau de confort souhaité.</p>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto">
                             {budgetLevels.map(b => (
                                 <button
                                     key={b.id}
                                     onClick={() => updateFormData({ budget: b.id })}
-                                    className={`p-6 rounded-3xl border-2 text-left transition-all group hover:scale-[1.02] ${formData.budget === b.id ? 'bg-brand-500/10 border-brand-500 shadow-xl' : 'bg-dark-800/50 border-white/5 hover:border-white/20 hover:bg-dark-800'}`}
+                                    className={`p-4 rounded-2xl border-2 text-left transition-all group hover:scale-[1.02] ${formData.budget === b.id ? 'bg-brand-500/10 border-brand-500 shadow-xl' : 'bg-dark-800/50 border-white/5 hover:border-white/20 hover:bg-dark-800'}`}
                                 >
-                                    <div className="flex items-center justify-between mb-4">
-                                        <span className={`text-2xl font-black transition-colors ${formData.budget === b.id ? 'text-brand-500' : 'text-gray-500 group-hover:text-white'}`}>{b.id}</span>
-                                        {formData.budget === b.id && <div className="w-6 h-6 bg-brand-500 rounded-full flex items-center justify-center shadow-lg shadow-brand-500/50"><Check size={14} className="text-white" /></div>}
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className={`text-lg md:text-xl font-black transition-colors ${formData.budget === b.id ? 'text-brand-500' : 'text-gray-500 group-hover:text-white'}`}>{b.id}</span>
+                                        {formData.budget === b.id && <div className="w-5 h-5 bg-brand-500 rounded-full flex items-center justify-center shadow-lg shadow-brand-500/50"><Check size={12} className="text-white" /></div>}
                                     </div>
-                                    <p className="font-bold text-lg mb-1 text-white">{b.label}</p>
-                                    <p className="text-sm text-gray-500 group-hover:text-gray-400 transition-colors">{b.desc}</p>
+                                    <p className="font-bold text-sm md:text-lg mb-1 text-white">{b.label}</p>
+                                    <p className="text-xs text-gray-500 group-hover:text-gray-400 transition-colors">{b.desc}</p>
                                 </button>
                             ))}
                         </div>
@@ -530,25 +529,25 @@ const NewTrip: React.FC = () => {
                 );
             case 4:
                 return (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="text-center space-y-2">
-                            <h2 className="text-3xl md:text-4xl font-black italic tracking-tight">Combien d'aventuriers ?</h2>
-                            <p className="text-gray-400">Ajustez le nombre de participants.</p>
+                    <div className="space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="text-center space-y-1 md:space-y-2">
+                            <h2 className="text-xl md:text-2xl font-black tracking-tight">Combien d'aventuriers ?</h2>
+                            <p className="text-sm md:text-base text-gray-400">Ajustez le nombre de participants.</p>
                         </div>
-                        <div className="flex items-center justify-center gap-6 md:gap-12 py-10">
+                        <div className="flex items-center justify-center gap-6 md:gap-12 py-6 md:py-10">
                             <button
                                 onClick={() => updateFormData({ participants: Math.max(1, formData.participants - 1) })}
-                                className="w-20 h-20 rounded-3xl bg-dark-800 border-2 border-white/5 flex items-center justify-center text-3xl font-black hover:bg-dark-700 hover:border-white/20 transition-all active:scale-95 shadow-lg text-gray-400 hover:text-white"
+                                className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-dark-800 border-2 border-white/5 flex items-center justify-center text-xl md:text-2xl font-black hover:bg-dark-700 hover:border-white/20 transition-all active:scale-95 shadow-lg text-gray-400 hover:text-white"
                             >
                                 -
                             </button>
-                            <div className="flex flex-col items-center w-40">
-                                <span className="text-[120px] leading-none font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-600 drop-shadow-2xl">{formData.participants}</span>
-                                <span className="text-brand-500 uppercase font-bold tracking-[0.2em] text-xs mt-4">{formData.participants > 1 ? 'Voyageurs' : 'Voyageur'}</span>
+                            <div className="flex flex-col items-center w-32 md:w-40">
+                                <span className="text-7xl md:text-8xl leading-none font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-600 drop-shadow-2xl">{formData.participants}</span>
+                                <span className="text-brand-500 uppercase font-bold tracking-[0.2em] text-[10px] md:text-xs mt-2 md:mt-4">{formData.participants > 1 ? 'Voyageurs' : 'Voyageur'}</span>
                             </div>
                             <button
                                 onClick={() => updateFormData({ participants: formData.participants + 1 })}
-                                className="w-20 h-20 rounded-3xl bg-dark-800 border-2 border-white/5 flex items-center justify-center text-3xl font-black hover:bg-dark-700 hover:border-white/20 transition-all active:scale-95 shadow-lg text-gray-400 hover:text-white"
+                                className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-dark-800 border-2 border-white/5 flex items-center justify-center text-xl md:text-2xl font-black hover:bg-dark-700 hover:border-white/20 transition-all active:scale-95 shadow-lg text-gray-400 hover:text-white"
                             >
                                 +
                             </button>
@@ -557,24 +556,24 @@ const NewTrip: React.FC = () => {
                 );
             case 5:
                 return (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="text-center space-y-2">
-                            <h2 className="text-3xl md:text-4xl font-black italic tracking-tight">À quel rythme ?</h2>
-                            <p className="text-gray-400">Plutôt farniente ou marathon de visites ?</p>
+                    <div className="space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="text-center space-y-1 md:space-y-2">
+                            <h2 className="text-xl md:text-2xl font-black tracking-tight">À quel rythme ?</h2>
+                            <p className="text-sm md:text-base text-gray-400">Intensif ou détendu ?</p>
                         </div>
-                        <div className="space-y-4 max-w-md mx-auto">
+                        <div className="space-y-3 md:space-y-4 max-w-md mx-auto">
                             {rhythms.map(r => (
                                 <button
                                     key={r.id}
                                     onClick={() => updateFormData({ rhythm: `${r.id} ${r.label}` })}
-                                    className={`w-full p-5 rounded-3xl border-2 flex items-center gap-5 transition-all group hover:scale-[1.02] ${formData.rhythm.startsWith(r.id) ? 'bg-brand-500/10 border-brand-500 shadow-lg' : 'bg-dark-800/50 border-white/5 hover:border-white/20 hover:bg-dark-800'}`}
+                                    className={`w-full p-3 md:p-4 rounded-2xl md:rounded-3xl border-2 flex items-center gap-4 transition-all group hover:scale-[1.02] ${formData.rhythm.startsWith(r.id) ? 'bg-brand-500/10 border-brand-500 shadow-lg' : 'bg-dark-800/50 border-white/5 hover:border-white/20 hover:bg-dark-800'}`}
                                 >
-                                    <div className="w-16 h-16 bg-dark-900 rounded-2xl flex items-center justify-center text-3xl shadow-inner border border-white/5 group-hover:scale-110 transition-transform duration-300">{r.id}</div>
+                                    <div className="w-12 h-12 md:w-16 md:h-16 bg-dark-900 rounded-xl md:rounded-2xl flex items-center justify-center text-2xl md:text-3xl shadow-inner border border-white/5 group-hover:scale-110 transition-transform duration-300">{r.id}</div>
                                     <div className="text-left flex-1">
-                                        <p className="font-bold text-lg text-white mb-1">{r.label}</p>
-                                        <p className="text-sm text-gray-500 leading-tight">{r.desc}</p>
+                                        <p className="font-bold text-sm md:text-lg text-white mb-0.5">{r.label}</p>
+                                        <p className="text-xs md:text-sm text-gray-500 leading-tight">{r.desc}</p>
                                     </div>
-                                    {formData.rhythm.startsWith(r.id) && <div className="text-brand-500"><Check size={20} /></div>}
+                                    {formData.rhythm.startsWith(r.id) && <div className="text-brand-500"><Check size={18} /></div>}
                                 </button>
                             ))}
                         </div>
@@ -582,29 +581,29 @@ const NewTrip: React.FC = () => {
                 );
             case 7:
                 return (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="text-center space-y-2">
-                            <h2 className="text-3xl md:text-4xl font-black italic tracking-tight">Envies & Contraintes</h2>
-                            <p className="text-gray-400">Une précision ? Un besoin spécifique ? Dites-nous tout.</p>
+                    <div className="space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="text-center space-y-1 md:space-y-2">
+                            <h2 className="text-xl md:text-2xl font-black tracking-tight">Envies & Contraintes</h2>
+                            <p className="text-sm md:text-base text-gray-400">Une précision ? Un besoin spécifique ?</p>
                         </div>
-                        <div className="max-w-xl mx-auto space-y-6">
+                        <div className="max-w-xl mx-auto space-y-4">
                             <div className="relative group">
-                                <MessageSquare className="absolute top-6 left-6 text-gray-500 group-focus-within:text-brand-500 transition-colors" size={24} />
+                                <MessageSquare className="absolute top-4 left-4 text-gray-500 group-focus-within:text-brand-500 transition-colors" size={20} />
                                 <textarea
                                     value={formData.notes}
                                     onChange={e => updateFormData({ notes: e.target.value })}
-                                    rows={8}
-                                    className="w-full bg-dark-800 border-2 border-white/5 rounded-3xl py-6 pl-16 pr-6 text-white focus:outline-none focus:border-brand-500 transition-all text-lg shadow-inner placeholder:text-gray-600 resize-none"
-                                    placeholder="Ex: 'On voyage avec un bébé', 'Pas plus de 2h de route par jour', 'On veut surtout manger local'..."
+                                    rows={5}
+                                    className="w-full bg-dark-800 border-2 border-white/5 rounded-2xl md:rounded-3xl py-4 pl-12 pr-4 text-white focus:outline-none focus:border-brand-500 transition-all text-sm md:text-base shadow-inner placeholder:text-gray-600 resize-none"
+                                    placeholder="Ex: 'On voyage avec un bébé', 'Pas plus de 2h de route par jour'..."
                                 />
                             </div>
 
-                            <div className="bg-gradient-to-br from-brand-500/10 to-brand-500/5 p-6 rounded-2xl border border-brand-500/10 flex gap-4 items-start shadow-lg">
-                                <div className="w-10 h-10 rounded-full bg-brand-500/20 flex items-center justify-center shrink-0 shadow-inner">
-                                    <Sparkles className="text-brand-500" size={20} />
+                            <div className="bg-gradient-to-br from-brand-500/10 to-brand-500/5 p-4 rounded-xl border border-brand-500/10 flex gap-3 items-start shadow-lg">
+                                <div className="w-8 h-8 rounded-full bg-brand-500/20 flex items-center justify-center shrink-0 shadow-inner">
+                                    <Sparkles className="text-brand-500" size={16} />
                                 </div>
-                                <p className="text-sm text-gray-300 leading-relaxed italic pt-1">
-                                    Ces informations permettront à <span className="text-brand-400 font-bold">Tori IA</span> de personnaliser chaque instant de votre futur itinéraire pour qu'il soit unique.
+                                <p className="text-xs text-gray-300 leading-relaxed italic pt-0.5">
+                                    Ces informations permettront à <span className="text-brand-400 font-bold">Tori IA</span> de personnaliser chaque instant de votre futur itinéraire.
                                 </p>
                             </div>
                         </div>
@@ -616,7 +615,7 @@ const NewTrip: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-dark-900 text-white pb-28 md:pb-20 overflow-x-hidden">
+        <div className="min-h-screen bg-dark-900 text-white pb-24 md:pb-20 overflow-x-hidden">
             <Navbar />
 
             {/* Sticky Recap / Header */}
@@ -650,31 +649,31 @@ const NewTrip: React.FC = () => {
                 {renderStep()}
 
                 {/* Navigation Buttons */}
-                <div className="fixed bottom-0 left-0 right-0 p-4 md:p-8 bg-gradient-to-t from-dark-900 via-dark-900/95 to-transparent z-40">
-                    <div className="max-w-3xl mx-auto flex gap-4">
+                <div className="fixed bottom-0 left-0 right-0 p-3 md:p-6 bg-gradient-to-t from-dark-900 via-dark-900/95 to-transparent z-40">
+                    <div className="max-w-3xl mx-auto flex gap-3 md:gap-4">
                         {step > 1 && (
                             <button
                                 onClick={prevStep}
-                                className="w-16 h-16 rounded-2xl bg-dark-800 border border-white/5 flex items-center justify-center hover:bg-dark-700 hover:border-white/20 transition-all active:scale-95 shadow-xl shrink-0 text-white"
+                                className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl bg-dark-800 border border-white/5 flex items-center justify-center hover:bg-dark-700 hover:border-white/20 transition-all active:scale-95 shadow-xl shrink-0 text-white"
                             >
-                                <ChevronLeft size={28} />
+                                <ChevronLeft size={24} />
                             </button>
                         )}
 
                         <button
                             onClick={step === 7 ? handleCreateTrip : nextStep}
                             disabled={loading || (step === 1 && (!formData.origin || formData.destinations.length === 0))}
-                            className={`flex-1 h-16 rounded-2xl font-black text-lg md:text-xl transition-all shadow-xl active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-30 disabled:cursor-not-allowed ${step === 7 ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 shadow-green-500/20' : 'bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 shadow-brand-500/20 text-white'}`}
+                            className={`flex-1 h-12 md:h-16 rounded-xl md:rounded-2xl font-black text-base md:text-xl transition-all shadow-xl active:scale-[0.98] flex items-center justify-center gap-2 md:gap-3 disabled:opacity-30 disabled:cursor-not-allowed ${step === 7 ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 shadow-green-500/20' : 'bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 shadow-brand-500/20 text-white'}`}
                         >
                             {loading ? (
-                                <div className="flex items-center gap-3">
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                <div className="flex items-center gap-2 md:gap-3">
+                                    <div className="w-4 h-4 md:w-5 md:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                                     <span>Création...</span>
                                 </div>
                             ) : (
                                 <>
                                     {step === 7 ? 'Créer mon itinéraire' : 'Continuer'}
-                                    {step < 7 ? <ChevronRight size={24} /> : <Zap size={20} className="fill-current animate-pulse" />}
+                                    {step < 7 ? <ChevronRight size={20} /> : <Zap size={20} className="fill-current animate-pulse" />}
                                 </>
                             )}
                         </button>
