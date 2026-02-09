@@ -493,6 +493,8 @@ const TripEditor: React.FC = () => {
     const [inviteStatus, setInviteStatus] = useState<'idle' | 'success' | 'error'>('idle');
     const [inviteStatusMessage, setInviteStatusMessage] = useState('');
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+    const [deletingTrip, setDeletingTrip] = useState(false);
     const [confirmConfig, setConfirmConfig] = useState<{
         isOpen: boolean;
         title: string;
@@ -946,6 +948,94 @@ const TripEditor: React.FC = () => {
             setTrip(prev => prev ? { ...prev, preferences: updatedPreferences } : null);
             setTripEmoji(newEmoji);
         }
+    };
+
+    // Delete trip and all related data
+    const handleDeleteTrip = async () => {
+        if (!trip || !tripId || !isOwner) return;
+
+        setDeletingTrip(true);
+        setShowOptionsMenu(false);
+
+        try {
+            // Get all day IDs for this trip
+            const dayIds = days.map(d => d.id);
+
+            // Get all card IDs for these days
+            const { data: cardsData } = await supabase
+                .from('cards')
+                .select('id')
+                .in('day_id', dayIds);
+
+            const cardIds = cardsData?.map(c => c.id) || [];
+
+            // 1. Delete checklists (linked to cards)
+            if (cardIds.length > 0) {
+                await supabase
+                    .from('checklists')
+                    .delete()
+                    .in('card_id', cardIds);
+            }
+
+            // 2. Delete cards (linked to days)
+            if (dayIds.length > 0) {
+                await supabase
+                    .from('cards')
+                    .delete()
+                    .in('day_id', dayIds);
+            }
+
+            // 3. Delete days
+            await supabase
+                .from('trip_days')
+                .delete()
+                .eq('trip_id', tripId);
+
+            // 4. Delete invitations
+            await supabase
+                .from('trip_invitations')
+                .delete()
+                .eq('trip_id', tripId);
+
+            // 5. Delete members
+            await supabase
+                .from('trip_members')
+                .delete()
+                .eq('trip_id', tripId);
+
+            // 6. Finally delete the trip itself
+            const { error } = await supabase
+                .from('trips')
+                .delete()
+                .eq('id', tripId);
+
+            if (error) throw error;
+
+            // Navigate back to dashboard
+            navigate('/dashboard');
+        } catch (error) {
+            console.error('Error deleting trip:', error);
+            setConfirmConfig({
+                isOpen: true,
+                title: 'Erreur',
+                message: 'Impossible de supprimer le voyage. Veuillez réessayer.',
+                onConfirm: () => { },
+                variant: 'danger'
+            });
+        } finally {
+            setDeletingTrip(false);
+        }
+    };
+
+    const confirmDeleteTrip = () => {
+        setConfirmConfig({
+            isOpen: true,
+            title: 'Supprimer ce voyage ?',
+            message: 'Cette action est irréversible. Toutes les données du voyage (jours, activités, participants) seront définitivement supprimées.',
+            onConfirm: handleDeleteTrip,
+            variant: 'danger'
+        });
+        setShowOptionsMenu(false);
     };
 
     const handleAddDay = async () => {
@@ -1574,16 +1664,55 @@ const TripEditor: React.FC = () => {
 
             {/* HERO CARD - Container Principal Mobile-First */}
             <header className="pt-6 pb-4 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-                {/* Bouton Retour */}
-                <button
-                    onClick={() => handleSafeNavigation(() => navigate('/dashboard'))}
-                    className="inline-flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-white transition-colors mb-4 group"
-                >
-                    <div className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-brand-500 group-hover:text-white transition-all">
-                        <ChevronLeft size={14} />
-                    </div>
-                    <span className="group-hover:translate-x-0.5 transition-transform">Retour</span>
-                </button>
+                {/* Header Actions */}
+                <div className="flex items-center justify-between mb-4">
+                    {/* Bouton Retour */}
+                    <button
+                        onClick={() => handleSafeNavigation(() => navigate('/dashboard'))}
+                        className="inline-flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-white transition-colors group"
+                    >
+                        <div className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-brand-500 group-hover:text-white transition-all">
+                            <ChevronLeft size={14} />
+                        </div>
+                        <span className="group-hover:translate-x-0.5 transition-transform">Retour</span>
+                    </button>
+
+                    {/* Bouton Options (only for owner) */}
+                    {isOwner && (
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+                                className="inline-flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-white transition-colors group"
+                            >
+                                <span className="group-hover:-translate-x-0.5 transition-transform">Options</span>
+                                <div className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-brand-500 group-hover:text-white transition-all">
+                                    <MoreVertical size={14} />
+                                </div>
+                            </button>
+
+                            {/* Dropdown Menu */}
+                            {showOptionsMenu && (
+                                <>
+                                    {/* Overlay to close */}
+                                    <div
+                                        className="fixed inset-0 z-40"
+                                        onClick={() => setShowOptionsMenu(false)}
+                                    />
+                                    <div className="absolute right-0 top-full mt-2 w-48 bg-dark-800 border border-white/10 rounded-xl shadow-2xl shadow-black/50 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <button
+                                            onClick={confirmDeleteTrip}
+                                            disabled={deletingTrip}
+                                            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-400 hover:bg-red-500/10 transition-colors"
+                                        >
+                                            <Trash2 size={16} />
+                                            {deletingTrip ? 'Suppression...' : 'Supprimer le voyage'}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
 
                 {/* Hero Card */}
                 <div className="bg-gradient-to-br from-dark-800 via-dark-800 to-dark-900 rounded-[28px] border border-white/5 overflow-hidden shadow-2xl shadow-black/40">
