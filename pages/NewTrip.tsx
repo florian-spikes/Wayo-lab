@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { generateItinerary, TripContext } from '../lib/ai/itinerary-generator';
 import {
     ChevronLeft,
     ChevronRight,
@@ -19,7 +20,8 @@ import {
     Star,
     Sparkles,
     Plus,
-    Activity
+    Activity,
+    Loader2
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import MapboxAutocomplete from '../components/MapboxAutocomplete';
@@ -47,6 +49,8 @@ const NewTrip: React.FC = () => {
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [showExitModal, setShowExitModal] = useState(false);
+    const [generationStep, setGenerationStep] = useState<'idle' | 'creating' | 'generating' | 'saving' | 'done'>('idle');
+    const [showGeneratingModal, setShowGeneratingModal] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
 
     // Multi-dest input state
@@ -148,6 +152,8 @@ const NewTrip: React.FC = () => {
     const handleCreateTrip = async () => {
         if (!user) return;
         setLoading(true);
+        setShowGeneratingModal(true);
+        setGenerationStep('creating');
 
         try {
             // Calculate duration
@@ -160,6 +166,21 @@ const NewTrip: React.FC = () => {
 
             // Format destinations string for existing schema
             const destinationString = formData.destinations.join(', ');
+
+            // Map budget and rhythm to AI-compatible values
+            const budgetMap: Record<string, 'low' | 'medium' | 'high' | 'luxury'> = {
+                '€': 'low',
+                '€€': 'medium',
+                '€€€': 'high',
+                '€€€€': 'luxury'
+            };
+            const rhythmMap: Record<string, 'relaxed' | 'balanced' | 'intense'> = {
+                '🐢': 'relaxed',
+                '🚶': 'balanced',
+                '🏃': 'intense',
+                '⚡': 'intense'
+            };
+            const rhythmKey = formData.rhythm.split(' ')[0];
 
             // 1. Create Trip
             const { data: trip, error: tripError } = await supabase
@@ -187,9 +208,42 @@ const NewTrip: React.FC = () => {
 
             if (tripError) throw tripError;
 
-            // 2. Generate Days
-            const daysToInsert = Array.from({ length: duration }).map((_, i) => {
-                const dayIndex = i + 1;
+            // 2. Generate AI Itinerary
+            setGenerationStep('generating');
+
+            const aiContext: TripContext = {
+                destinations: formData.destinations,
+                origin: formData.origin,
+                durationDays: duration,
+                startDate: formData.dateMode === 'fixed' ? formData.startDate : undefined,
+                season: formData.dateMode === 'flexible' ? formData.season : undefined,
+                budget: budgetMap[formData.budget] || 'medium',
+                rhythm: rhythmMap[rhythmKey] || 'balanced',
+                experiences: formData.experiences,
+                participants: formData.participants,
+                notes: formData.notes || undefined,
+                // User context from origin (extract country)
+                userCountry: formData.origin.split(',').pop()?.trim()
+            };
+
+            const aiResult = await generateItinerary(aiContext);
+
+            if (!aiResult.success || !aiResult.itinerary) {
+                throw new Error(aiResult.error || 'AI generation failed');
+            }
+
+            // Update trip title if AI provided a better one
+            if (aiResult.itinerary.title && !aiResult.fallback) {
+                await supabase
+                    .from('trips')
+                    .update({ title: aiResult.itinerary.title })
+                    .eq('id', trip.id);
+            }
+
+            // 3. Insert Days with AI-generated titles
+            setGenerationStep('saving');
+
+            const daysToInsert = aiResult.itinerary.days.map((day, i) => {
                 let dayDate = null;
                 if (formData.dateMode === 'fixed' && formData.startDate) {
                     const d = new Date(formData.startDate);
@@ -198,19 +252,59 @@ const NewTrip: React.FC = () => {
                 }
                 return {
                     trip_id: trip.id,
-                    day_index: dayIndex,
+                    day_index: day.dayIndex,
                     date: dayDate,
+                    title: day.title || `Jour ${day.dayIndex}`,
                     status: 'draft'
                 };
             });
 
-            const { error: daysError } = await supabase
+            const { data: insertedDays, error: daysError } = await supabase
                 .from('trip_days')
-                .insert(daysToInsert);
+                .insert(daysToInsert)
+                .select();
 
             if (daysError) throw daysError;
 
-            // 3. Add Creator as Member
+            // 4. Insert Cards (activities) from AI
+            if (insertedDays && !aiResult.fallback) {
+                const cardsToInsert: any[] = [];
+
+                for (const day of aiResult.itinerary.days) {
+                    const dbDay = insertedDays.find(d => d.day_index === day.dayIndex);
+                    if (!dbDay) continue;
+
+                    day.activities.forEach((activity, actIndex) => {
+                        cardsToInsert.push({
+                            trip_id: trip.id,
+                            day_id: dbDay.id,
+                            type: activity.type,
+                            title: activity.title,
+                            description: activity.description,
+                            start_time: activity.startTime || null,
+                            end_time: activity.endTime || null,
+                            location_text: activity.locationText || null,
+                            cost_estimate: activity.costEstimate || null,
+                            order_index: actIndex,
+                            source: 'ai',
+                            created_by: user.id
+                        });
+                    });
+                }
+
+                if (cardsToInsert.length > 0) {
+                    const { error: cardsError } = await supabase
+                        .from('cards')
+                        .insert(cardsToInsert);
+
+                    if (cardsError) {
+                        console.error('Error inserting AI cards:', cardsError);
+                        // Don't throw - trip is still valid without cards
+                    }
+                }
+            }
+
+            // 5. Add Creator as Member
             const { error: memberError } = await supabase
                 .from('trip_members')
                 .insert({
@@ -221,13 +315,20 @@ const NewTrip: React.FC = () => {
 
             if (memberError) throw memberError;
 
-            // Reset dirty state to allow navigation without popups
+            // Done!
+            setGenerationStep('done');
             setIsDirty(false);
+
+            // Brief pause to show success state
+            await new Promise(resolve => setTimeout(resolve, 800));
 
             // Redirect to editor day 1
             navigate(`/trips/${trip.id}/day/1`);
 
         } catch (error: any) {
+            console.error('Trip creation error:', error);
+            setShowGeneratingModal(false);
+            setGenerationStep('idle');
             alert(`Erreur lors de la création : ${error.message}`);
         } finally {
             setLoading(false);
@@ -793,6 +894,67 @@ const NewTrip: React.FC = () => {
                             >
                                 Abandonner le voyage
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* AI Generation Modal */}
+            {showGeneratingModal && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center px-4">
+                    <div className="absolute inset-0 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300"></div>
+                    <div className="relative bg-gradient-to-br from-dark-800 to-dark-900 border border-white/10 rounded-[40px] p-8 max-w-sm w-full shadow-2xl animate-in zoom-in duration-500 text-center">
+
+                        {/* Animated Icon */}
+                        <div className="relative w-24 h-24 mx-auto mb-6">
+                            {generationStep === 'done' ? (
+                                <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center animate-in zoom-in duration-300">
+                                    <Check className="text-green-400" size={48} />
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="absolute inset-0 bg-brand-500/20 rounded-full animate-ping"></div>
+                                    <div className="absolute inset-2 bg-brand-500/30 rounded-full animate-pulse"></div>
+                                    <div className="relative w-24 h-24 bg-gradient-to-br from-brand-500 to-brand-600 rounded-full flex items-center justify-center shadow-xl shadow-brand-500/30">
+                                        <Sparkles className="text-white animate-pulse" size={40} />
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Step Text */}
+                        <h3 className="text-2xl font-black mb-2">
+                            {generationStep === 'creating' && '🌍 Création du voyage...'}
+                            {generationStep === 'generating' && '✨ Tori génère votre itinéraire...'}
+                            {generationStep === 'saving' && '💾 Enregistrement des activités...'}
+                            {generationStep === 'done' && '🎉 C\'est prêt !'}
+                        </h3>
+
+                        <p className="text-gray-400 text-sm mb-6">
+                            {generationStep === 'creating' && 'Préparation de votre aventure...'}
+                            {generationStep === 'generating' && 'L\'IA analyse vos préférences pour créer un itinéraire parfait.'}
+                            {generationStep === 'saving' && 'Quelques secondes encore...'}
+                            {generationStep === 'done' && 'Votre voyage personnalisé est prêt !'}
+                        </p>
+
+                        {/* Progress Steps */}
+                        <div className="flex justify-center gap-2">
+                            {['creating', 'generating', 'saving', 'done'].map((s, i) => {
+                                const steps = ['creating', 'generating', 'saving', 'done'];
+                                const currentIndex = steps.indexOf(generationStep);
+                                const isActive = i === currentIndex;
+                                const isComplete = i < currentIndex;
+
+                                return (
+                                    <div
+                                        key={s}
+                                        className={`h-2 rounded-full transition-all duration-500 ${isActive ? 'w-8 bg-brand-500' :
+                                                isComplete ? 'w-2 bg-brand-500' :
+                                                    'w-2 bg-gray-700'
+                                            }`}
+                                    />
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
