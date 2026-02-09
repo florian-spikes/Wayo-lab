@@ -11,9 +11,9 @@ export const genAI = apiKey && apiKey !== 'your_gemini_api_key_here'
     ? new GoogleGenerativeAI(apiKey)
     : null;
 
-// Primary model: Gemini 2.0 Flash (Experimental - Newest/Fastest)
+// Primary model: Gemini 2.0 Flash (Fast & Modern)
 export const geminiPro = genAI?.getGenerativeModel({
-    model: 'gemini-2.0-flash-exp',
+    model: 'gemini-2.0-flash',
     generationConfig: {
         responseMimeType: 'application/json',
         temperature: 0.7,
@@ -21,9 +21,9 @@ export const geminiPro = genAI?.getGenerativeModel({
     },
 });
 
-// Fallback model: Gemini 1.5 Pro (Most Robust)
+// Fallback model: Gemini 2.5 Pro (Ultra Robust)
 export const geminiFlash = genAI?.getGenerativeModel({
-    model: 'gemini-1.5-pro',
+    model: 'gemini-2.5-pro',
     generationConfig: {
         responseMimeType: 'application/json',
         temperature: 0.7,
