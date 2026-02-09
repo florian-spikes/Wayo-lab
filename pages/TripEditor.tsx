@@ -57,6 +57,7 @@ import {
     Pencil
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
+import TripNotFound from '../components/TripNotFound';
 
 // DnD Kit imports
 import {
@@ -1637,7 +1638,7 @@ const TripEditor: React.FC = () => {
         );
     }
 
-    if (!trip) return <div>Trip not found</div>;
+    if (!trip) return <TripNotFound />;
 
     const formattedDate = currentDay?.date
         ? new Date(currentDay.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
