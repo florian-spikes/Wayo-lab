@@ -65,3 +65,22 @@ export async function withRetry<T>(
 
     throw lastError;
 }
+
+// Debug: List available models
+export async function listAvailableModels(): Promise<string[]> {
+    if (!apiKey) return [];
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        if (!response.ok) {
+            console.error('Failed to list models:', response.statusText);
+            return [];
+        }
+        const data = await response.json();
+        const models = data.models?.map((m: any) => m.name.replace('models/', '')) || [];
+        console.log('📋 Available Gemini Models:', models);
+        return models;
+    } catch (e) {
+        console.error('Error listing models:', e);
+        return [];
+    }
+}

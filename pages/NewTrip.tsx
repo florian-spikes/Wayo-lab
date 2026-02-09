@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { generateItineraryStream, TripContext } from '../lib/ai/itinerary-generator';
+import { listAvailableModels } from '../lib/gemini';
 import {
     ChevronLeft,
     ChevronRight,
@@ -425,7 +426,18 @@ const NewTrip: React.FC = () => {
             console.error('Trip creation error:', error);
             setShowGeneratingModal(false);
             setGenerationStep('idle');
-            alert(`Erreur lors de la création : ${error.message}`);
+
+            let errorMessage = error.message;
+            if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+                const models = await listAvailableModels();
+                if (models.length > 0) {
+                    errorMessage += `\n\nModèles disponibles détectés: ${models.join(', ')}`;
+                } else {
+                    errorMessage += `\n\nImpossible de lister les modèles (Vérifiez la clé API).`;
+                }
+            }
+
+            alert(`Erreur lors de la création : ${errorMessage}`);
         } finally {
             setLoading(false);
             setLoadingMessage('');
