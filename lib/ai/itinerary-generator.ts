@@ -1,4 +1,4 @@
-import { geminiFlash, isAIAvailable } from '../gemini';
+import { geminiPro, geminiFlash, isAIAvailable, withRetry } from '../gemini';
 import { buildSystemPrompt, buildUserPrompt } from './prompts';
 import type { TripContext, GeneratedItinerary, GeneratedDay } from './schemas';
 
@@ -22,7 +22,8 @@ export interface GenerationResult {
  */
 export async function generateItinerary(context: TripContext): Promise<GenerationResult> {
     // Check if AI is available
-    if (!isAIAvailable() || !geminiFlash) {
+    const model = geminiPro || geminiFlash;
+    if (!isAIAvailable() || !model) {
         console.warn('AI not available, returning empty itinerary');
         return {
             success: true,
@@ -43,18 +44,20 @@ export async function generateItinerary(context: TripContext): Promise<Generatio
             rhythm: context.rhythm
         });
 
-        // Call Gemini API
-        const result = await geminiFlash.generateContent({
-            contents: [
-                {
-                    role: 'user',
-                    parts: [
-                        { text: systemPrompt },
-                        { text: userPrompt }
-                    ]
-                }
-            ]
-        });
+        // Call Gemini API with retry for rate limiting
+        const result = await withRetry(async () => {
+            return model.generateContent({
+                contents: [
+                    {
+                        role: 'user',
+                        parts: [
+                            { text: systemPrompt },
+                            { text: userPrompt }
+                        ]
+                    }
+                ]
+            });
+        }, 3, 2000);
 
         const response = result.response;
         const text = response.text();

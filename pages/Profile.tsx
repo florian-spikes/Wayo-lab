@@ -17,6 +17,7 @@ import {
     X
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
+import MapboxAutocomplete from '../components/MapboxAutocomplete';
 
 // --- Composant Modale Personnalisé ---
 interface ModalProps {
@@ -335,16 +336,13 @@ const Profile: React.FC = () => {
 
                             <div className="space-y-2">
                                 <label className="text-[11px] text-gray-400 ml-1 font-bold">Ville actuelle</label>
-                                <div className="relative">
-                                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
-                                    <input
-                                        type="text"
-                                        value={location}
-                                        onChange={(e) => setLocation(e.target.value)}
-                                        placeholder="Ex: Paris, France"
-                                        className="w-full bg-dark-900/60 border border-white/5 rounded-xl py-3 pl-11 pr-4 text-white focus:outline-none focus:border-brand-500/50 transition-all text-sm font-medium"
-                                    />
-                                </div>
+                                <MapboxAutocomplete
+                                    value={location}
+                                    onChange={setLocation}
+                                    placeholder="Ex: Paris, France"
+                                    type="city"
+                                    className="w-full"
+                                />
                                 <p className="text-[10px] text-gray-500 ml-1">* Le nom d'utilisateur n'est pas modifiable.</p>
                             </div>
                         </div>

@@ -44,7 +44,7 @@ interface TripData {
 }
 
 const NewTrip: React.FC = () => {
-    const { user } = useAuth();
+    const { user, profile } = useAuth();
     const navigate = useNavigate();
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -90,6 +90,13 @@ const NewTrip: React.FC = () => {
         experiences: [],
         notes: ''
     });
+
+    // Pre-fill origin with user's profile location
+    useEffect(() => {
+        if (profile?.location && !formData.origin) {
+            setFormData(prev => ({ ...prev, origin: profile.location }));
+        }
+    }, [profile?.location]);
 
     const updateFormData = (data: Partial<TripData>) => {
         setFormData(prev => ({ ...prev, ...data }));
